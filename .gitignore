@@ -39,3 +39,10 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Firebase
+firebase/seed/serviceAccountKey.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

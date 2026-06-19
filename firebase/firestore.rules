@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper functions ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isFamilyMember(familyId) {
+      let family = get(/databases/$(database)/documents/families/$(familyId)).data;
+      return request.auth.uid in family.members;
+    }
+
+    function isAgencyStaff(agencyId) {
+      let agency = get(/databases/$(database)/documents/agencies/$(agencyId)).data;
+      return request.auth.uid in agency.staffUserIds;
+    }
+
+    // --- Users ---
+
+    match /users/{userId} {
+      // Users can read their own profile
+      // Family members can read each other's profiles
+      // Agency staff can read users linked to their agency
+      allow read: if isOwner(userId)
+        || (isSignedIn()
+            && resource.data.familyId != null
+            && isFamilyMember(resource.data.familyId))
+        || (isSignedIn()
+            && resource.data.familyId != null
+            && isAgencyStaff(
+                 get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.agencyId
+               ));
+
+      // Users can update their own profile but cannot change their role
+      allow update: if isOwner(userId)
+        && !("role" in request.resource.data
+             && request.resource.data.role != resource.data.role);
+
+      // No client-side create or delete
+      allow create, delete: if false;
+    }
+
+    // --- Families ---
+
+    match /families/{familyId} {
+      // Family members and linked agency staff can read
+      allow read: if isSignedIn()
+        && (isFamilyMember(familyId)
+            || isAgencyStaff(resource.data.agencyId));
+
+      // No client-side writes (admin/seed only)
+      allow write: if false;
+    }
+
+    // --- Agencies ---
+
+    match /agencies/{agencyId} {
+      // Agency staff can read their own agency
+      allow read: if isSignedIn() && isAgencyStaff(agencyId);
+
+      // No client-side writes (admin/seed only)
+      allow write: if false;
+    }
+
+    // --- Alerts ---
+
+    match /alerts/{alertId} {
+      // Family members and linked agency staff can read
+      allow read: if isSignedIn()
+        && (isFamilyMember(resource.data.familyId)
+            || isAgencyStaff(resource.data.agencyId));
+
+      // Users can create alerts for themselves with valid type and status
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type in ["panic", "ai_anomaly", "offline", "checkin"]
+        && request.resource.data.status == "new";
+
+      // Family members and agency staff can update alerts (status changes, notes)
+      allow update: if isSignedIn()
+        && (isFamilyMember(resource.data.familyId)
+            || isAgencyStaff(resource.data.agencyId));
+
+      // No client-side deletes
+      allow delete: if false;
+    }
+  }
+}
