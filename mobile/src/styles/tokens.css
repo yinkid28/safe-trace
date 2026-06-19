@@ -1,0 +1,17 @@
+:root {
+  --brand-primary: #5c3d2e;
+  --brand-primary-light: #7a5a4a;
+  --surface: #ffffff;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --safe: #16a34a;
+  --safe-light: #f0fdf4;
+  --warning: #f59e0b;
+  --warning-light: #fffbeb;
+  --text-primary: #1c1917;
+  --text-secondary: #78716c;
+  --surface-muted: #f5f0eb;
+  --border: #e7e5e4;
+  --radius: 12px;
+  --radius-sm: 8px;
+}

@@ -46,3 +46,9 @@ firebase/seed/serviceAccountKey.json
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Mobile (Capacitor)
+mobile/node_modules/
+mobile/dist/
+mobile/android/
+mobile/ios/

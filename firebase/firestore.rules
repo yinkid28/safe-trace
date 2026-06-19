@@ -22,9 +22,12 @@ service cloud.firestore {
       return request.auth.uid in family.members;
     }
 
+    // Check agency staff by reading the user's own profile rather than
+    // the agency doc. This lets self-registered staff work without
+    // needing an admin to update agency.staffUserIds first.
     function isAgencyStaff(agencyId) {
-      let agency = get(/databases/$(database)/documents/agencies/$(agencyId)).data;
-      return request.auth.uid in agency.staffUserIds;
+      let userData = getUserData();
+      return userData.role == 'agency_staff' && userData.agencyId == agencyId;
     }
 
     // --- Users ---
@@ -43,13 +46,20 @@ service cloud.firestore {
                  get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.agencyId
                ));
 
-      // Users can update their own profile but cannot change their role
-      allow update: if isOwner(userId)
-        && !("role" in request.resource.data
-             && request.resource.data.role != resource.data.role);
+      // Users can create their own profile during registration
+      allow create: if isOwner(userId)
+        && request.resource.data.role in ["user", "agency_staff"]
+        && request.resource.data.email == request.auth.token.email;
 
-      // No client-side create or delete
-      allow create, delete: if false;
+      // Users can update their own profile.
+      // Role can only change from "user" to "family_admin" (when creating a family).
+      allow update: if isOwner(userId)
+        && (request.resource.data.role == resource.data.role
+            || (resource.data.role == "user"
+                && request.resource.data.role == "family_admin"));
+
+      // No client-side deletes
+      allow delete: if false;
     }
 
     // --- Families ---
@@ -60,8 +70,18 @@ service cloud.firestore {
         && (isFamilyMember(familyId)
             || isAgencyStaff(resource.data.agencyId));
 
-      // No client-side writes (admin/seed only)
-      allow write: if false;
+      // Any authenticated user can create a family if they set
+      // themselves as admin and include themselves in members
+      allow create: if isSignedIn()
+        && request.resource.data.adminUserId == request.auth.uid
+        && request.auth.uid in request.resource.data.members;
+
+      // Family admin can update (e.g. add members)
+      allow update: if isSignedIn()
+        && resource.data.adminUserId == request.auth.uid;
+
+      // No client-side deletes
+      allow delete: if false;
     }
 
     // --- Agencies ---
