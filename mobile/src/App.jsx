@@ -4,15 +4,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
-
-function Placeholder({ title }) {
-  return (
-    <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>
-      <h2>{title}</h2>
-      <p style={{ marginTop: "0.5rem" }}>Coming in a future update.</p>
-    </div>
-  );
-}
+import FamilyMap from "./pages/Map";
+import FamilyAlerts from "./pages/Alerts";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -28,9 +22,9 @@ export default function App() {
         }
       >
         <Route index element={<Home />} />
-        <Route path="map" element={<Placeholder title="Map" />} />
-        <Route path="alerts" element={<Placeholder title="Alerts" />} />
-        <Route path="settings" element={<Placeholder title="Settings" />} />
+        <Route path="map" element={<FamilyMap />} />
+        <Route path="alerts" element={<FamilyAlerts />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );

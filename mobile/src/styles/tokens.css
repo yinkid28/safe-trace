@@ -1,17 +1,39 @@
 :root {
-  --brand-primary: #5c3d2e;
-  --brand-primary-light: #7a5a4a;
-  --surface: #ffffff;
-  --danger: #dc2626;
-  --danger-light: #fef2f2;
-  --safe: #16a34a;
-  --safe-light: #f0fdf4;
-  --warning: #f59e0b;
-  --warning-light: #fffbeb;
-  --text-primary: #1c1917;
-  --text-secondary: #78716c;
-  --surface-muted: #f5f0eb;
-  --border: #e7e5e4;
+  /* Brand.md Color System */
+  --color-primary: #6B4F3A;
+  --color-primary-hover: #5A4230;
+  --color-primary-light: #8A6A51;
+  --color-surface: #FFFFFF;
+  --color-background: #F8F8F6;
+  --color-danger: #D92D20;
+  --color-danger-light: #FEF3F2;
+  --color-safe: #2E7D32;
+  --color-safe-light: #EAF7EC;
+  --color-warning: #F59E0B;
+  --color-warning-light: #FFF7E6;
+  --color-text-primary: #1D1D1D;
+  --color-text-secondary: #5F6368;
+  --color-border: #E5E7EB;
+  --color-disabled: #BDBDBD;
+  --color-map-route: #6B4F3A;
+  --color-map-user: #2E7D32;
+  --color-map-alert: #D92D20;
+
+  /* Compatibility Mapping */
+  --brand-primary: var(--color-primary);
+  --brand-primary-hover: var(--color-primary-hover);
+  --brand-primary-light: var(--color-primary-light);
+  --surface: var(--color-surface);
+  --danger: var(--color-danger);
+  --danger-light: var(--color-danger-light);
+  --safe: var(--color-safe);
+  --safe-light: var(--color-safe-light);
+  --warning: var(--color-warning);
+  --warning-light: var(--color-warning-light);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --surface-muted: var(--color-background);
+  --border: var(--color-border);
   --radius: 12px;
   --radius-sm: 8px;
 }
