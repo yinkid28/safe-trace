@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   doc,
   getDoc,
@@ -9,9 +9,39 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import "./Home.css";
 
+// Workaround for Leaflet default marker icons failing under Vite
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 const DEFAULT_AGENCY_ID = "agency_yaba";
+
+const SIMULATED_ROUTE = [
+  { lat: 6.5095, lng: 3.3810, label: "Sabo, Yaba", speed: 15, heading: 45 },
+  { lat: 6.5158, lng: 3.3775, label: "Yabatech Campus", speed: 22, heading: 120 },
+  { lat: 6.5190, lng: 3.3680, label: "Tejuosho Market", speed: 45, heading: 270 },
+  { lat: 6.5250, lng: 3.3700, label: "Jibowu", speed: 30, heading: 90 },
+  { lat: 6.5158, lng: 3.3985, label: "UNILAG", speed: 12, heading: 180 },
+];
+
+// Component to dynamically pan map to current location
+function ChangeMapView({ center }) {
+  const map = useMap();
+  map.setView(center, map.getZoom());
+  return null;
+}
 
 export default function Home() {
   const { user, logout, refreshProfile } = useAuth();
@@ -21,6 +51,25 @@ export default function Home() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
 
+  // Safe Zones Panel States
+  const [showAddZone, setShowAddZone] = useState(false);
+  const [zoneLabel, setZoneLabel] = useState("");
+  const [zoneLat, setZoneLat] = useState("");
+  const [zoneLng, setZoneLng] = useState("");
+  const [modifyingZones, setModifyingZones] = useState(false);
+
+  // Panic SOS & Tracking States
+  const [panicCountdown, setPanicCountdown] = useState(null);
+  const [currentAlertId, setCurrentAlertId] = useState(null);
+  const [isAlertActive, setIsAlertActive] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+  const [currentSimIndex, setCurrentSimIndex] = useState(0);
+  const [journeyPath, setJourneyPath] = useState([]); // List of lat/lng recorded during active tracking
+
+  const trackingInterval = useRef(null);
+  const countdownInterval = useRef(null);
+
+  // Fetch Family Data
   useEffect(() => {
     if (!user?.familyId) {
       setFamily(null);
@@ -33,6 +82,14 @@ export default function Home() {
       }
     });
   }, [user?.familyId]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      stopTracking();
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+    };
+  }, []);
 
   if (!user) return null;
 
@@ -48,7 +105,6 @@ export default function Home() {
 
     setCreating(true);
     try {
-      // Create the family document
       const familyRef = doc(collection(db, "families"));
       await setDoc(familyRef, {
         name: trimmed,
@@ -58,7 +114,6 @@ export default function Home() {
         createdAt: serverTimestamp(),
       });
 
-      // Update the user's profile with familyId and promote to family_admin
       await updateDoc(doc(db, "users", user.uid), {
         familyId: familyRef.id,
         role: "family_admin",
@@ -74,6 +129,244 @@ export default function Home() {
     }
   };
 
+  // Safe Zones Handling
+  const handleAddSafeZone = async (e) => {
+    e.preventDefault();
+    if (!zoneLabel || !zoneLat || !zoneLng) return;
+
+    setModifyingZones(true);
+    try {
+      const newZone = {
+        label: zoneLabel.trim(),
+        lat: parseFloat(zoneLat),
+        lng: parseFloat(zoneLng),
+      };
+
+      const updatedSafeZones = [...(user.safeZones || []), newZone];
+      await updateDoc(doc(db, "users", user.uid), {
+        safeZones: updatedSafeZones,
+      });
+
+      await refreshProfile();
+      setZoneLabel("");
+      setZoneLat("");
+      setZoneLng("");
+      setShowAddZone(false);
+    } catch (err) {
+      console.error("Failed to add safe zone:", err);
+    } finally {
+      setModifyingZones(false);
+    }
+  };
+
+  const handleDeleteSafeZone = async (index) => {
+    setModifyingZones(true);
+    try {
+      const updatedSafeZones = (user.safeZones || []).filter((_, i) => i !== index);
+      await updateDoc(doc(db, "users", user.uid), {
+        safeZones: updatedSafeZones,
+      });
+      await refreshProfile();
+    } catch (err) {
+      console.error("Failed to delete safe zone:", err);
+    } finally {
+      setModifyingZones(false);
+    }
+  };
+
+  // Panic Button Actions
+  const startPanicCountdown = () => {
+    if (panicCountdown !== null || isAlertActive) return;
+    setPanicCountdown(3);
+
+    countdownInterval.current = setInterval(() => {
+      setPanicCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval.current);
+          triggerPanicAlert();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const cancelPanicCountdown = () => {
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+    }
+    setPanicCountdown(null);
+  };
+
+  const triggerPanicAlert = async () => {
+    setIsAlertActive(true);
+    
+    // Default coordinates (Sabo, Yaba)
+    const initialLoc = SIMULATED_ROUTE[0];
+    
+    try {
+      const alertRef = doc(collection(db, "alerts"));
+      const alertId = alertRef.id;
+      setCurrentAlertId(alertId);
+
+      const alertData = {
+        userId: user.uid,
+        userName: user.name,
+        familyId: user.familyId || "no_family",
+        agencyId: family?.agencyId || DEFAULT_AGENCY_ID,
+        type: "panic",
+        status: "new",
+        createdAt: new Date(),
+        lastKnownLocation: {
+          lat: initialLoc.lat,
+          lng: initialLoc.lng,
+          speed: initialLoc.speed,
+          heading: initialLoc.heading,
+        },
+        locationName: initialLoc.label,
+        riskScore: 1.0,
+        explanations: ["Manual panic button triggered by user"],
+        evidenceUrls: ["https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=500&auto=format&fit=crop&q=60"], // simulated captured evidence photo
+        escalated: true,
+        escalatedAt: new Date(),
+        trajectory: [{ lat: initialLoc.lat, lng: initialLoc.lng, timestamp: new Date().toISOString() }],
+        timeline: [
+          { event: "Panic triggered", timestamp: new Date() },
+          { event: "Evidence photo captured", timestamp: new Date() },
+          { event: "Alert escalated to agency", timestamp: new Date() },
+        ],
+        notes: [],
+      };
+
+      await setDoc(alertRef, alertData);
+
+      // Also force-start simulated location tracking
+      setJourneyPath([{ lat: initialLoc.lat, lng: initialLoc.lng }]);
+      startTracking(alertId, 0);
+    } catch (err) {
+      console.error("SOS Trigger Error:", err);
+      setIsAlertActive(false);
+    }
+  };
+
+  // Safe Tracking / Simulated Journey Methods
+  const startTracking = (alertId = null, startIdx = 0) => {
+    setIsTracking(true);
+    let simIdx = startIdx;
+    setCurrentSimIndex(simIdx);
+
+    // Initial path coordinates
+    const initialPt = SIMULATED_ROUTE[simIdx];
+    const path = [{ lat: initialPt.lat, lng: initialPt.lng }];
+    setJourneyPath(path);
+
+    trackingInterval.current = setInterval(async () => {
+      simIdx = (simIdx + 1) % SIMULATED_ROUTE.length;
+      setCurrentSimIndex(simIdx);
+
+      const loc = SIMULATED_ROUTE[simIdx];
+      const newCoord = { lat: loc.lat, lng: loc.lng };
+      
+      setJourneyPath((prev) => [...prev, newCoord]);
+
+      // 1. Update User Document
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          lastLocation: {
+            lat: loc.lat,
+            lng: loc.lng,
+            speed: loc.speed,
+            heading: loc.heading,
+          },
+          lastSeen: new Date(),
+        });
+      } catch (err) {
+        console.error("Error updating user location:", err);
+      }
+
+      // 2. If SOS Alert is active, update Alert Document trajectory
+      const activeAlertId = alertId || currentAlertId;
+      if (activeAlertId) {
+        try {
+          const alertRef = doc(db, "alerts", activeAlertId);
+          const snap = await getDoc(alertRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            const currentTrajectory = data.trajectory || [];
+            const newTimeline = [...(data.timeline || [])];
+            
+            // Add timeline log when route deviation happens (mocking AI trigger)
+            if (simIdx === 2 && !newTimeline.some(t => t.event.includes("deviation"))) {
+              newTimeline.push({ event: "AI flagged anomaly: Route deviation", timestamp: new Date() });
+            }
+
+            await updateDoc(alertRef, {
+              lastKnownLocation: {
+                lat: loc.lat,
+                lng: loc.lng,
+                speed: loc.speed,
+                heading: loc.heading,
+              },
+              locationName: loc.label,
+              trajectory: [...currentTrajectory, { ...newCoord, timestamp: new Date().toISOString() }],
+              timeline: newTimeline,
+            });
+          }
+        } catch (err) {
+          console.error("Error updating alert path:", err);
+        }
+      }
+    }, 4500); // Ticks every 4.5 seconds
+  };
+
+  const stopTracking = () => {
+    setIsTracking(false);
+    if (trackingInterval.current) {
+      clearInterval(trackingInterval.current);
+    }
+  };
+
+  const handleCheckInSafe = async () => {
+    stopTracking();
+    cancelPanicCountdown();
+    setIsAlertActive(false);
+
+    if (currentAlertId) {
+      try {
+        const alertRef = doc(db, "alerts", currentAlertId);
+        const snap = await getDoc(alertRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          const currentTimeline = data.timeline || [];
+          
+          await updateDoc(alertRef, {
+            status: "resolved",
+            resolvedAt: new Date(),
+            timeline: [
+              ...currentTimeline,
+              { event: "User checked in safely", timestamp: new Date() },
+              { event: "Alert marked resolved", timestamp: new Date() },
+            ],
+          });
+        }
+      } catch (err) {
+        console.error("Check-in Error:", err);
+      }
+      setCurrentAlertId(null);
+    }
+
+    // Set user back online
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        phoneStatus: "online",
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const activePosition = SIMULATED_ROUTE[currentSimIndex];
+
   return (
     <div className="home">
       <header className="home-header">
@@ -81,9 +374,9 @@ export default function Home() {
           <h1 className="home-greeting">Hi, {user.name?.split(" ")[0]}</h1>
           <div className="home-status">
             <span
-              className={`status-dot ${user.phoneStatus === "online" ? "online" : "offline"}`}
+              className={`status-dot ${user.phoneStatus === "online" && !isAlertActive ? "online" : "offline"}`}
             />
-            {user.phoneStatus === "online" ? "Online" : "Offline"}
+            {isAlertActive ? "Distress Alert Broadcasted" : (user.phoneStatus === "online" ? "Online" : "Offline")}
           </div>
         </div>
         <button className="logout-btn" onClick={logout}>
@@ -91,14 +384,106 @@ export default function Home() {
         </button>
       </header>
 
+      {/* PANIC SOS TRIGGER */}
       {user.role !== "agency_staff" && (
-        <button className="panic-button" disabled>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96l-6.93-12a2 2 0 00-3.5 0l-6.93 12A2 2 0 005.07 19z" />
-          </svg>
-          <span className="panic-label">PANIC</span>
-          <span className="panic-hint">Coming soon</span>
-        </button>
+        <div className="panic-section">
+          {panicCountdown !== null ? (
+            <button className="panic-button triggering" onClick={cancelPanicCountdown}>
+              <div className="countdown-ring">
+                <span className="countdown-number">{panicCountdown}</span>
+              </div>
+              <span className="panic-label">CANCEL SOS</span>
+              <span className="panic-hint">Tap to abort broadcast</span>
+            </button>
+          ) : isAlertActive ? (
+            <button className="panic-button active" onClick={handleCheckInSafe}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sos-pulse">
+                <path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96l-6.93-12a2 2 0 00-3.5 0l-6.93 12A2 2 0 005.07 19z" />
+              </svg>
+              <span className="panic-label">SOS ACTIVE</span>
+              <span className="panic-hint">Check in to signal safety</span>
+            </button>
+          ) : (
+            <button className="panic-button ready" onClick={startPanicCountdown}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96l-6.93-12a2 2 0 00-3.5 0l-6.93 12A2 2 0 005.07 19z" />
+              </svg>
+              <span className="panic-label">PANIC</span>
+              <span className="panic-hint">Press to broadcast emergency SOS</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ACTIVE TRACKING JOURNEY SCREEN */}
+      {isTracking && (
+        <section className="home-card tracking-card">
+          <div className="tracking-header">
+            <h2 className="card-title live-indicator">
+              <span className="pulse-dot"></span> Live Journey Tracker
+            </h2>
+            <button className="btn-safe-checkin" onClick={handleCheckInSafe}>
+              Check In Safe
+            </button>
+          </div>
+
+          <div className="telemetry-grid">
+            <div className="tel-card">
+              <span className="tel-label">Location</span>
+              <span className="tel-value">{activePosition.label}</span>
+            </div>
+            <div className="tel-card">
+              <span className="tel-label">Current Speed</span>
+              <span className="tel-value">{activePosition.speed} km/h</span>
+            </div>
+            <div className="tel-card">
+              <span className="tel-label">Heading</span>
+              <span className="tel-value">{activePosition.heading}°</span>
+            </div>
+          </div>
+
+          {/* Leaflet Interactive Route Map */}
+          <div className="map-wrapper">
+            <MapContainer
+              center={[activePosition.lat, activePosition.lng]}
+              zoom={14}
+              scrollWheelZoom={false}
+              className="journey-map"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <ChangeMapView center={[activePosition.lat, activePosition.lng]} />
+              
+              {/* Draw trajectory route polyline */}
+              {journeyPath.length > 1 && (
+                <Polyline positions={journeyPath.map(p => [p.lat, p.lng])} color="#6B4F3A" weight={4} />
+              )}
+              
+              <Marker position={[activePosition.lat, activePosition.lng]}>
+                <Popup>
+                  <strong>{user.name}</strong> <br />
+                  Speed: {activePosition.speed} km/h <br />
+                  Location: {activePosition.label}
+                </Popup>
+              </Marker>
+            </MapContainer>
+          </div>
+        </section>
+      )}
+
+      {/* START TRACKING TOGGLE */}
+      {user.role !== "agency_staff" && !isTracking && !isAlertActive && (
+        <section className="home-card tracking-toggle-card">
+          <div className="toggle-info">
+            <h3 className="toggle-title">Safe Journey Monitoring</h3>
+            <p className="card-detail">Enable real-time location routing and AI safety updates.</p>
+          </div>
+          <button className="btn-primary" onClick={() => startTracking(null, 0)}>
+            Start Monitoring
+          </button>
+        </section>
       )}
 
       {family && (
@@ -158,18 +543,83 @@ export default function Home() {
         </section>
       )}
 
+      {/* SAFE ZONES PANEL */}
       {user.role !== "agency_staff" && (
         <section className="home-card">
-          <h2 className="card-title">Safe Zones</h2>
-          {user.safeZones?.length > 0 ? (
+          <div className="safe-zones-header">
+            <h2 className="card-title">Safe Zones</h2>
+            {!showAddZone && (
+              <button className="btn-add-zone" onClick={() => setShowAddZone(true)}>
+                + Add
+              </button>
+            )}
+          </div>
+
+          {showAddZone ? (
+            <form onSubmit={handleAddSafeZone} className="add-zone-form">
+              <input
+                type="text"
+                placeholder="Zone name (e.g. Home, Office)"
+                value={zoneLabel}
+                onChange={(e) => setZoneLabel(e.target.value)}
+                className="auth-input"
+                required
+              />
+              <div className="coordinate-inputs">
+                <input
+                  type="number"
+                  step="0.000001"
+                  placeholder="Latitude (e.g. 6.515)"
+                  value={zoneLat}
+                  onChange={(e) => setZoneLat(e.target.value)}
+                  className="auth-input"
+                  required
+                />
+                <input
+                  type="number"
+                  step="0.000001"
+                  placeholder="Longitude (e.g. 3.377)"
+                  value={zoneLng}
+                  onChange={(e) => setZoneLng(e.target.value)}
+                  className="auth-input"
+                  required
+                />
+              </div>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowAddZone(false)}
+                  disabled={modifyingZones}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={modifyingZones}>
+                  {modifyingZones ? "Adding..." : "Add Zone"}
+                </button>
+              </div>
+            </form>
+          ) : user.safeZones?.length > 0 ? (
             <ul className="safe-zone-list">
               {user.safeZones.map((zone, i) => (
-                <li key={i} className="safe-zone-item">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="zone-icon">
-                    <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {zone.label || `Zone ${i + 1}`}
+                <li key={i} className="safe-zone-item-wrapper">
+                  <div className="safe-zone-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="zone-icon">
+                      <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <div>
+                      <span className="zone-name">{zone.label || `Zone ${i + 1}`}</span>
+                      <span className="zone-coord">{zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-delete-zone"
+                    onClick={() => handleDeleteSafeZone(i)}
+                    disabled={modifyingZones}
+                  >
+                    Delete
+                  </button>
                 </li>
               ))}
             </ul>
