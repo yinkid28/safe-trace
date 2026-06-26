@@ -24,14 +24,23 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-            <span className="nav-icon">📊</span>
-            <span className="nav-lbl">Alert Feed</span>
-          </NavLink>
-          <NavLink to="/map" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-            <span className="nav-icon">🗺️</span>
-            <span className="nav-lbl">Situational Map</span>
-          </NavLink>
+          {user.role === "platform_admin" ? (
+            <NavLink to="/dashboard/admin" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
+              <span className="nav-icon">🏢</span>
+              <span className="nav-lbl">Agency Management</span>
+            </NavLink>
+          ) : (
+            <>
+              <NavLink to="/dashboard" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
+                <span className="nav-icon">📊</span>
+                <span className="nav-lbl">Alert Feed</span>
+              </NavLink>
+              <NavLink to="/dashboard/map" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
+                <span className="nav-icon">🗺️</span>
+                <span className="nav-lbl">Situational Map</span>
+              </NavLink>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -41,7 +50,7 @@ export default function Layout() {
             </div>
             <div className="user-text">
               <span className="user-name">{user.name}</span>
-              <span className="user-role">Staff Responder</span>
+              <span className="user-role">{user.role === "platform_admin" ? "Platform Admin" : "Staff Responder"}</span>
             </div>
           </div>
           <button className="btn-sidebar-logout" onClick={handleLogout}>

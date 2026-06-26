@@ -19,13 +19,18 @@ export function AuthProvider({ children }) {
     const snap = await getDoc(doc(db, "users", uid));
     if (snap.exists()) {
       const data = snap.data();
-      if (data.role !== "agency_staff") {
+      if (data.role !== "agency_staff" && data.role !== "agency_admin" && data.role !== "platform_admin") {
         await signOut(auth);
         throw new Error("Access denied: Security Agency staff only.");
       }
-      setUser({ uid, ...data });
+      const profile = { uid, ...data };
+      setUser(profile);
+      return profile;
     } else {
+      // Don't signOut here — user might be mid-registration on AgencyRegister.
+      // The login flow checks the return value separately.
       setUser(null);
+      return null;
     }
   }, []);
 
@@ -52,7 +57,12 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await fetchUserProfile(result.user.uid);
+      const profile = await fetchUserProfile(result.user.uid);
+      if (!profile) {
+        await signOut(auth);
+        throw new Error("No agency profile found for this account.");
+      }
+      return profile;
     } catch (err) {
       setError(err.message);
       throw err;

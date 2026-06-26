@@ -30,13 +30,20 @@ service cloud.firestore {
       return userData.role == 'agency_staff' && userData.agencyId == agencyId;
     }
 
+    function isPlatformAdmin() {
+      let userData = getUserData();
+      return userData.role == 'platform_admin';
+    }
+
     // --- Users ---
 
     match /users/{userId} {
       // Users can read their own profile
       // Family members can read each other's profiles
       // Agency staff can read users linked to their agency
+      // Platform admins can read all users (needed for agency admin info)
       allow read: if isOwner(userId)
+        || (isSignedIn() && isPlatformAdmin())
         || (isSignedIn()
             && resource.data.familyId != null
             && isFamilyMember(resource.data.familyId))
@@ -48,14 +55,14 @@ service cloud.firestore {
 
       // Users can create their own profile during registration
       allow create: if isOwner(userId)
-        && request.resource.data.role in ["user", "agency_staff"]
+        && request.resource.data.role in ["personal", "user", "agency_staff", "agency_admin", "platform_admin"]
         && request.resource.data.email == request.auth.token.email;
 
       // Users can update their own profile.
-      // Role can only change from "user" to "family_admin" (when creating a family).
+      // Role can only change from "personal" (or legacy "user") to "family_admin" (when creating a family).
       allow update: if isOwner(userId)
         && (request.resource.data.role == resource.data.role
-            || (resource.data.role == "user"
+            || (resource.data.role in ["personal", "user"]
                 && request.resource.data.role == "family_admin"));
 
       // No client-side deletes
@@ -65,10 +72,9 @@ service cloud.firestore {
     // --- Families ---
 
     match /families/{familyId} {
-      // Family members and linked agency staff can read
-      allow read: if isSignedIn()
-        && (isFamilyMember(familyId)
-            || isAgencyStaff(resource.data.agencyId));
+      // Family members and linked agency staff can read.
+      // Any signed-in user can also read (needed for join-by-ID lookup).
+      allow read: if isSignedIn();
 
       // Any authenticated user can create a family if they set
       // themselves as admin and include themselves in members
@@ -76,9 +82,11 @@ service cloud.firestore {
         && request.resource.data.adminUserId == request.auth.uid
         && request.auth.uid in request.resource.data.members;
 
-      // Family admin can update (e.g. add members)
+      // Family admin can update.
+      // A user joining can update IF they are adding themselves to members.
       allow update: if isSignedIn()
-        && resource.data.adminUserId == request.auth.uid;
+        && (resource.data.adminUserId == request.auth.uid
+            || request.auth.uid in request.resource.data.members);
 
       // No client-side deletes
       allow delete: if false;
@@ -87,19 +95,31 @@ service cloud.firestore {
     // --- Agencies ---
 
     match /agencies/{agencyId} {
-      // Agency staff can read their own agency
-      allow read: if isSignedIn() && isAgencyStaff(agencyId);
+      // Verified agencies readable by any signed-in user (for agency picker).
+      // Staff can always read their own agency regardless of status.
+      // Platform admins can read all agencies for verification workflow.
+      allow read: if isSignedIn()
+        && (resource.data.status == "verified"
+            || isAgencyStaff(agencyId)
+            || isPlatformAdmin());
 
-      // No client-side writes (admin/seed only)
-      allow write: if false;
+      // Any authenticated user can create an agency with pending status
+      // (agency signup flow on the web dashboard).
+      allow create: if isSignedIn()
+        && request.resource.data.status == "pending";
+
+      // Platform admins can update agencies (verify/revoke status)
+      allow update: if isSignedIn() && isPlatformAdmin();
+      allow delete: if false;
     }
 
     // --- Alerts ---
 
     match /alerts/{alertId} {
-      // Family members and linked agency staff can read
+      // Alert creator, family members, and linked agency staff can read
       allow read: if isSignedIn()
-        && (isFamilyMember(resource.data.familyId)
+        && (resource.data.userId == request.auth.uid
+            || isFamilyMember(resource.data.familyId)
             || isAgencyStaff(resource.data.agencyId));
 
       // Users can create alerts for themselves with valid type and status
@@ -108,9 +128,10 @@ service cloud.firestore {
         && request.resource.data.type in ["panic", "ai_anomaly", "offline", "checkin"]
         && request.resource.data.status == "new";
 
-      // Family members and agency staff can update alerts (status changes, notes)
+      // Alert creator, family members, and agency staff can update alerts
       allow update: if isSignedIn()
-        && (isFamilyMember(resource.data.familyId)
+        && (resource.data.userId == request.auth.uid
+            || isFamilyMember(resource.data.familyId)
             || isAgencyStaff(resource.data.agencyId));
 
       // No client-side deletes

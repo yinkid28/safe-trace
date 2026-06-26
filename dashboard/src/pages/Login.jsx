@@ -12,7 +12,7 @@ export default function Login() {
   const [localError, setLocalError] = useState(null);
 
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={user.role === "platform_admin" ? "/dashboard/admin" : "/dashboard"} replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,8 +21,9 @@ export default function Login() {
     setSubmitting(true);
 
     try {
-      await login(email.trim(), password);
-      navigate("/", { replace: true });
+      const profile = await login(email.trim(), password);
+      const dest = profile?.role === "platform_admin" ? "/dashboard/admin" : "/dashboard";
+      navigate(dest, { replace: true });
     } catch (err) {
       console.error(err);
       if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
