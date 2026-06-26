@@ -3,10 +3,12 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  deleteUser,
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
 export const AuthContext = createContext(null);
@@ -21,8 +23,10 @@ export function AuthProvider({ children }) {
     const snap = await getDoc(doc(db, "users", uid));
     if (snap.exists()) {
       setUser({ uid, ...snap.data() });
+      return true;
     } else {
       setUser(null);
+      return false;
     }
   }, []);
 
@@ -43,7 +47,11 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await fetchUserProfile(result.user.uid);
+      const found = await fetchUserProfile(result.user.uid);
+      if (!found) {
+        await signOut(auth);
+        throw new Error("No account profile found. Please register a new account.");
+      }
     } catch (err) {
       setError(err.message);
       throw err;
@@ -51,13 +59,15 @@ export function AuthProvider({ children }) {
   }, [fetchUserProfile]);
 
   const register = useCallback(
-    async ({ name, email, phone, password, role = "user", agencyId = null }) => {
+    async ({ name, email, phone, password, role = "personal", agencyId = null }) => {
       setError(null);
+      let createdUser = null;
       try {
         const result = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(result.user, { displayName: name });
+        createdUser = result.user;
+        await updateProfile(createdUser, { displayName: name });
 
-        await setDoc(doc(db, "users", result.user.uid), {
+        await setDoc(doc(db, "users", createdUser.uid), {
           name,
           email,
           phone,
@@ -71,8 +81,17 @@ export function AuthProvider({ children }) {
           createdAt: serverTimestamp(),
         });
 
-        await fetchUserProfile(result.user.uid);
+        await fetchUserProfile(createdUser.uid);
       } catch (err) {
+        // If Auth user was created but Firestore write failed, clean up
+        // the orphaned Auth user so the email can be reused on retry.
+        if (createdUser) {
+          try {
+            await deleteUser(createdUser);
+          } catch (_) {
+            // Best effort cleanup
+          }
+        }
         setError(err.message);
         throw err;
       }
@@ -80,11 +99,24 @@ export function AuthProvider({ children }) {
     [fetchUserProfile]
   );
 
+  const resetPassword = useCallback(async (email) => {
+    await sendPasswordResetEmail(auth, email);
+  }, []);
+
   const logout = useCallback(async () => {
+    if (authUser) {
+      try {
+        await updateDoc(doc(db, "users", authUser.uid), {
+          phoneStatus: "offline",
+        });
+      } catch (_) {
+        // Best effort — don't block logout if Firestore write fails
+      }
+    }
     await signOut(auth);
     setUser(null);
     setAuthUser(null);
-  }, []);
+  }, [authUser]);
 
   const value = {
     authUser,
@@ -94,6 +126,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    resetPassword,
     refreshProfile: () => authUser && fetchUserProfile(authUser.uid),
   };
 

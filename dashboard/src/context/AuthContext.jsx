@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useState, useContext } from "rea
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -69,6 +70,10 @@ export function AuthProvider({ children }) {
     }
   }, [fetchUserProfile]);
 
+  const resetPassword = useCallback(async (email) => {
+    await sendPasswordResetEmail(auth, email);
+  }, []);
+
   const logout = useCallback(async () => {
     await signOut(auth);
     setUser(null);
@@ -82,6 +87,7 @@ export function AuthProvider({ children }) {
     error,
     login,
     logout,
+    resetPassword,
     clearError: () => setError(null),
   };
 

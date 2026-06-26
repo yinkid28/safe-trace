@@ -175,3 +175,29 @@
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+.login-forgot-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: right;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.login-reset-success {
+  padding: 0.75rem 1rem;
+  background: var(--color-safe-light, rgba(34, 139, 34, 0.08));
+  border: 1px solid rgba(34, 139, 34, 0.2);
+  color: var(--color-safe, #228b22);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
