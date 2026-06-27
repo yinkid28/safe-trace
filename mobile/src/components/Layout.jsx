@@ -1,7 +1,15 @@
 import { NavLink, Outlet } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import { useFamilyMembers } from "../hooks/useFamilyMembers";
+import { useWhereIsChat } from "../hooks/useWhereIsChat";
+import ChatOverlay from "./ChatOverlay";
 import "./Layout.css";
 
 export default function Layout() {
+  const { user } = useAuth();
+  const { members } = useFamilyMembers(user?.familyId, user?.uid);
+  const chat = useWhereIsChat(members, user?.safeZones || []);
+
   return (
     <div className="layout">
       <main className="layout-content">
@@ -35,6 +43,14 @@ export default function Layout() {
           <span>Settings</span>
         </NavLink>
       </nav>
+      <ChatOverlay
+        messages={chat.messages}
+        loading={chat.loading}
+        error={chat.error}
+        askQuestion={chat.askQuestion}
+        clearChat={chat.clearChat}
+        enabled={members.length > 0}
+      />
     </div>
   );
 }

@@ -441,6 +441,43 @@
   font-size: 0.75rem;
 }
 
+/* Family ID row (for admin sharing) */
+.family-id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
+
+.family-id-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.family-id-value {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.copy-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
 /* Create family form */
 .create-family-form {
   display: flex;
@@ -484,4 +521,72 @@
   border-radius: var(--radius-sm);
   font-weight: 500;
   font-size: 0.85rem;
+}
+
+.zone-radius {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.manage-map-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  text-decoration: none;
+  text-align: center;
+}
+
+/* AI anomaly check-in prompt */
+.anomaly-checkin {
+  border-color: var(--warning);
+  background: #fffbf0;
+}
+
+.anomaly-title {
+  color: var(--warning);
+}
+
+.anomaly-reasons {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+}
+
+.anomaly-reasons li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding-left: 1rem;
+  position: relative;
+}
+
+.anomaly-reasons li::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.anomaly-safe-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  background: var(--safe);
+}
+
+.anomaly-safe-btn:hover {
+  background: #235e26;
+}
+
+.form-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-actions-vertical .btn-primary,
+.form-actions-vertical .btn-secondary {
+  width: 100%;
+  text-align: center;
 }

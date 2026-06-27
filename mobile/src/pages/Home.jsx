@@ -1,17 +1,27 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router";
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   collection,
+  query,
+  where,
   serverTimestamp,
+  arrayUnion,
 } from "firebase/firestore";
-import { db } from "../config/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { db, storage } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useLocation } from "../hooks/useLocation";
+import { useFamilyMembers } from "../hooks/useFamilyMembers";
+import { useAnomalyDetection } from "../hooks/useAnomalyDetection";
 import "./Home.css";
 
 // Workaround for Leaflet default marker icons failing under Vite
@@ -27,6 +37,16 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const DEFAULT_AGENCY_ID = "agency_yaba";
+
+/** Generate a human-readable join code like "ADK-4429" */
+function generateJoinCode() {
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O to avoid confusion
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  const l2 = letters[Math.floor(Math.random() * letters.length)];
+  const l3 = letters[Math.floor(Math.random() * letters.length)];
+  const num = String(Math.floor(1000 + Math.random() * 9000)); // 4 digits
+  return `${l1}${l2}${l3}-${num}`;
+}
 
 const SIMULATED_ROUTE = [
   { lat: 6.5095, lng: 3.3810, label: "Sabo, Yaba", speed: 15, heading: 45 },
@@ -44,12 +64,28 @@ function ChangeMapView({ center }) {
 }
 
 export default function Home() {
-  const { user, logout, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
+  const { position } = useLocation();
+  const { members } = useFamilyMembers(user?.familyId, user?.uid);
+  const {
+    anomalyAlert, escalate, countdown: aiCountdown,
+    confirmSafe, resetEscalation, enabled: aiEnabled,
+  } = useAnomalyDetection(user);
   const [family, setFamily] = useState(null);
   const [showCreateFamily, setShowCreateFamily] = useState(false);
+  const [showJoinFamily, setShowJoinFamily] = useState(false);
   const [familyName, setFamilyName] = useState("");
+  const [joinFamilyId, setJoinFamilyId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  // Agency picker state
+  const [agencies, setAgencies] = useState([]);
+  const [selectedAgencyId, setSelectedAgencyId] = useState("");
+  const [showDirectAgency, setShowDirectAgency] = useState(false);
+  const [linkingAgency, setLinkingAgency] = useState(false);
 
   // Safe Zones Panel States
   const [showAddZone, setShowAddZone] = useState(false);
@@ -68,6 +104,12 @@ export default function Home() {
 
   const trackingInterval = useRef(null);
   const countdownInterval = useRef(null);
+  const positionRef = useRef(null);
+
+  // Keep positionRef in sync so tracking interval can read latest GPS
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
 
   // Fetch Family Data
   useEffect(() => {
@@ -82,6 +124,53 @@ export default function Home() {
       }
     });
   }, [user?.familyId]);
+
+  // Fetch verified agencies for picker
+  useEffect(() => {
+    const q = query(collection(db, "agencies"), where("status", "==", "verified"));
+    getDocs(q).then((snap) => {
+      setAgencies(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }).catch(() => {});
+  }, []);
+
+  // AI anomaly auto-escalation: create an alert if user didn't confirm safe
+  useEffect(() => {
+    if (!escalate || !anomalyAlert) return;
+
+    const loc = position
+      ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
+      : { lat: SIMULATED_ROUTE[0].lat, lng: SIMULATED_ROUTE[0].lng, speed: 0, heading: 0 };
+
+    const alertRef = doc(collection(db, "alerts"));
+    setDoc(alertRef, {
+      userId: user.uid,
+      userName: user.name,
+      familyId: user.familyId || "no_family",
+      agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
+      type: "ai_anomaly",
+      status: "new",
+      createdAt: new Date(),
+      lastKnownLocation: loc,
+      locationName: `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`,
+      riskScore: anomalyAlert.riskScore,
+      explanations: anomalyAlert.explanations,
+      evidenceUrls: [],
+      escalated: true,
+      escalatedAt: new Date(),
+      trajectory: [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }],
+      timeline: [
+        { event: "AI flagged anomalous movement", timestamp: new Date() },
+        { event: "User did not respond to check-in", timestamp: new Date() },
+        { event: "Alert auto-escalated to agency", timestamp: new Date() },
+      ],
+      notes: [],
+    }).then(() => {
+      resetEscalation();
+    }).catch((err) => {
+      console.error("AI alert creation failed:", err);
+      resetEscalation();
+    });
+  }, [escalate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -103,14 +192,22 @@ export default function Home() {
       return;
     }
 
+    const agencyId = selectedAgencyId || DEFAULT_AGENCY_ID;
+    if (!agencyId) {
+      setError("Please select a backup security agency.");
+      return;
+    }
+
     setCreating(true);
     try {
+      const joinCode = generateJoinCode();
       const familyRef = doc(collection(db, "families"));
       await setDoc(familyRef, {
         name: trimmed,
+        joinCode,
         members: [user.uid],
         adminUserId: user.uid,
-        agencyId: DEFAULT_AGENCY_ID,
+        agencyId,
         createdAt: serverTimestamp(),
       });
 
@@ -122,8 +219,10 @@ export default function Home() {
       await refreshProfile();
       setShowCreateFamily(false);
       setFamilyName("");
+      setSelectedAgencyId("");
     } catch (err) {
-      setError("Failed to create family. Please try again.");
+      console.error("Create family error:", err);
+      setError(err.message || "Failed to create family. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -200,48 +299,82 @@ export default function Home() {
 
   const triggerPanicAlert = async () => {
     setIsAlertActive(true);
-    
-    // Default coordinates (Sabo, Yaba)
-    const initialLoc = SIMULATED_ROUTE[0];
-    
+
+    // Use real GPS if available, fall back to simulated coordinates (but zero speed/heading)
+    const fallbackLoc = SIMULATED_ROUTE[0];
+    const loc = position
+      ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
+      : { lat: fallbackLoc.lat, lng: fallbackLoc.lng, speed: 0, heading: 0 };
+
+    const timelineEvents = [
+      { event: "Panic triggered", timestamp: new Date() },
+    ];
+
+    // Attempt to capture evidence photo before creating the alert
+    let photoBase64 = null;
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 70,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+        allowEditing: false,
+        width: 1280,
+      });
+      photoBase64 = photo.base64String;
+      timelineEvents.push({ event: "Evidence photo captured", timestamp: new Date() });
+    } catch {
+      // Camera unavailable or permission denied — continue without photo
+    }
+
     try {
       const alertRef = doc(collection(db, "alerts"));
       const alertId = alertRef.id;
       setCurrentAlertId(alertId);
 
+      timelineEvents.push({ event: "Alert escalated to agency", timestamp: new Date() });
+
       const alertData = {
         userId: user.uid,
         userName: user.name,
         familyId: user.familyId || "no_family",
-        agencyId: family?.agencyId || DEFAULT_AGENCY_ID,
+        agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
         type: "panic",
         status: "new",
         createdAt: new Date(),
-        lastKnownLocation: {
-          lat: initialLoc.lat,
-          lng: initialLoc.lng,
-          speed: initialLoc.speed,
-          heading: initialLoc.heading,
-        },
-        locationName: initialLoc.label,
+        lastKnownLocation: loc,
+        locationName: position ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : fallbackLoc.label,
         riskScore: 1.0,
         explanations: ["Manual panic button triggered by user"],
-        evidenceUrls: ["https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=500&auto=format&fit=crop&q=60"], // simulated captured evidence photo
+        evidenceUrls: [],
         escalated: true,
         escalatedAt: new Date(),
-        trajectory: [{ lat: initialLoc.lat, lng: initialLoc.lng, timestamp: new Date().toISOString() }],
-        timeline: [
-          { event: "Panic triggered", timestamp: new Date() },
-          { event: "Evidence photo captured", timestamp: new Date() },
-          { event: "Alert escalated to agency", timestamp: new Date() },
-        ],
+        trajectory: [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }],
+        timeline: timelineEvents,
         notes: [],
       };
 
       await setDoc(alertRef, alertData);
 
-      // Also force-start simulated location tracking
-      setJourneyPath([{ lat: initialLoc.lat, lng: initialLoc.lng }]);
+      // Upload evidence photo to Cloud Storage if captured
+      if (photoBase64) {
+        try {
+          const byteChars = atob(photoBase64);
+          const byteArray = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) {
+            byteArray[i] = byteChars.charCodeAt(i);
+          }
+          const blob = new Blob([byteArray], { type: "image/jpeg" });
+          const storageRef = ref(storage, `evidence/${alertId}/photo_${Date.now()}.jpg`);
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+          await updateDoc(alertRef, { evidenceUrls: arrayUnion(url) });
+        } catch {
+          // Photo upload failed — alert still exists without the image
+        }
+      }
+
+      // Start location tracking
+      setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
       startTracking(alertId, 0);
     } catch (err) {
       console.error("SOS Trigger Error:", err);
@@ -255,18 +388,31 @@ export default function Home() {
     let simIdx = startIdx;
     setCurrentSimIndex(simIdx);
 
-    // Initial path coordinates
-    const initialPt = SIMULATED_ROUTE[simIdx];
+    // Use real GPS if available for initial point
+    const gps = positionRef.current;
+    const initialPt = gps || SIMULATED_ROUTE[simIdx];
     const path = [{ lat: initialPt.lat, lng: initialPt.lng }];
     setJourneyPath(path);
 
     trackingInterval.current = setInterval(async () => {
-      simIdx = (simIdx + 1) % SIMULATED_ROUTE.length;
-      setCurrentSimIndex(simIdx);
+      // Prefer real GPS; fall back to simulated route
+      const currentGps = positionRef.current;
+      let loc;
+      if (currentGps) {
+        loc = {
+          lat: currentGps.lat,
+          lng: currentGps.lng,
+          speed: currentGps.speed || 0,
+          heading: currentGps.heading || 0,
+          label: `${currentGps.lat.toFixed(4)}, ${currentGps.lng.toFixed(4)}`,
+        };
+      } else {
+        simIdx = (simIdx + 1) % SIMULATED_ROUTE.length;
+        setCurrentSimIndex(simIdx);
+        loc = SIMULATED_ROUTE[simIdx];
+      }
 
-      const loc = SIMULATED_ROUTE[simIdx];
       const newCoord = { lat: loc.lat, lng: loc.lng };
-      
       setJourneyPath((prev) => [...prev, newCoord]);
 
       // 1. Update User Document
@@ -293,12 +439,6 @@ export default function Home() {
           if (snap.exists()) {
             const data = snap.data();
             const currentTrajectory = data.trajectory || [];
-            const newTimeline = [...(data.timeline || [])];
-            
-            // Add timeline log when route deviation happens (mocking AI trigger)
-            if (simIdx === 2 && !newTimeline.some(t => t.event.includes("deviation"))) {
-              newTimeline.push({ event: "AI flagged anomaly: Route deviation", timestamp: new Date() });
-            }
 
             await updateDoc(alertRef, {
               lastKnownLocation: {
@@ -309,7 +449,6 @@ export default function Home() {
               },
               locationName: loc.label,
               trajectory: [...currentTrajectory, { ...newCoord, timestamp: new Date().toISOString() }],
-              timeline: newTimeline,
             });
           }
         } catch (err) {
@@ -338,7 +477,7 @@ export default function Home() {
         if (snap.exists()) {
           const data = snap.data();
           const currentTimeline = data.timeline || [];
-          
+
           await updateDoc(alertRef, {
             status: "resolved",
             resolvedAt: new Date(),
@@ -365,7 +504,85 @@ export default function Home() {
     }
   };
 
-  const activePosition = SIMULATED_ROUTE[currentSimIndex];
+  // Use real GPS for display when available, fall back to simulated
+  const simPosition = SIMULATED_ROUTE[currentSimIndex];
+  const activePosition = position
+    ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0, label: `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` }
+    : simPosition;
+
+  const handleJoinFamily = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    const code = joinFamilyId.trim().toUpperCase();
+    if (!code) {
+      setError("Please enter a family code.");
+      return;
+    }
+
+    setJoining(true);
+    try {
+      // Look up family by joinCode
+      const q = query(collection(db, "families"), where("joinCode", "==", code));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setError("Family not found. Check the code and try again.");
+        setJoining(false);
+        return;
+      }
+
+      const familyDoc = snap.docs[0];
+      const familyId = familyDoc.id;
+
+      // Add user to the family's members array
+      await updateDoc(doc(db, "families", familyId), {
+        members: arrayUnion(user.uid),
+      });
+
+      // Set the user's familyId
+      await updateDoc(doc(db, "users", user.uid), {
+        familyId,
+      });
+
+      await refreshProfile();
+      setShowJoinFamily(false);
+      setJoinFamilyId("");
+    } catch (err) {
+      setError("Failed to join family. Please try again.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleCopyFamilyCode = () => {
+    const code = family?.joinCode;
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleLinkDirectAgency = async () => {
+    if (!selectedAgencyId) {
+      setError("Please select a security agency.");
+      return;
+    }
+    setLinkingAgency(true);
+    setError(null);
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        directAgencyId: selectedAgencyId,
+      });
+      await refreshProfile();
+      setShowDirectAgency(false);
+      setSelectedAgencyId("");
+    } catch (err) {
+      setError("Failed to link agency. Please try again.");
+    } finally {
+      setLinkingAgency(false);
+    }
+  };
 
   return (
     <div className="home">
@@ -379,9 +596,6 @@ export default function Home() {
             {isAlertActive ? "Distress Alert Broadcasted" : (user.phoneStatus === "online" ? "Online" : "Offline")}
           </div>
         </div>
-        <button className="logout-btn" onClick={logout}>
-          Log out
-        </button>
       </header>
 
       {/* PANIC SOS TRIGGER */}
@@ -413,6 +627,27 @@ export default function Home() {
             </button>
           )}
         </div>
+      )}
+
+      {/* AI ANOMALY CHECK-IN PROMPT */}
+      {anomalyAlert && !escalate && (
+        <section className="home-card anomaly-checkin">
+          <h2 className="card-title anomaly-title">Are you okay?</h2>
+          <p className="card-detail">
+            Our AI detected unusual movement. If you don't respond, an alert
+            will be sent to your family and agency in <strong>{aiCountdown}s</strong>.
+          </p>
+          {anomalyAlert.explanations.length > 0 && (
+            <ul className="anomaly-reasons">
+              {anomalyAlert.explanations.map((ex, i) => (
+                <li key={i}>{ex}</li>
+              ))}
+            </ul>
+          )}
+          <button className="btn-primary anomaly-safe-btn" onClick={confirmSafe}>
+            I'm Safe
+          </button>
+        </section>
       )}
 
       {/* ACTIVE TRACKING JOURNEY SCREEN */}
@@ -455,12 +690,12 @@ export default function Home() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <ChangeMapView center={[activePosition.lat, activePosition.lng]} />
-              
+
               {/* Draw trajectory route polyline */}
               {journeyPath.length > 1 && (
                 <Polyline positions={journeyPath.map(p => [p.lat, p.lng])} color="#6B4F3A" weight={4} />
               )}
-              
+
               <Marker position={[activePosition.lat, activePosition.lng]}>
                 <Popup>
                   <strong>{user.name}</strong> <br />
@@ -493,12 +728,24 @@ export default function Home() {
           <p className="card-detail">
             {family.members?.length || 0} member{family.members?.length !== 1 ? "s" : ""}
           </p>
+          {user.role === "family_admin" && family?.joinCode && (
+            <div className="family-id-row">
+              <span className="family-id-label">Join Code:</span>
+              <code className="family-id-value">{family.joinCode}</code>
+              <button
+                className="copy-btn"
+                onClick={handleCopyFamilyCode}
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      {!user.familyId && user.role !== "agency_staff" && (
+      {!user.familyId && !user.directAgencyId && user.role !== "agency_staff" && (
         <section className="home-card">
-          <h2 className="card-title">Family</h2>
+          <h2 className="card-title">Get Protected</h2>
           {showCreateFamily ? (
             <form onSubmit={handleCreateFamily} className="create-family-form">
               {error && <div className="form-error">{error}</div>}
@@ -510,6 +757,19 @@ export default function Home() {
                 className="auth-input"
                 required
               />
+              {agencies.length > 0 && (
+                <select
+                  className="auth-input"
+                  value={selectedAgencyId}
+                  onChange={(e) => setSelectedAgencyId(e.target.value)}
+                  required
+                >
+                  <option value="">Select a backup security agency</option>
+                  {agencies.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              )}
               <div className="form-actions">
                 <button
                   type="button"
@@ -526,18 +786,99 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          ) : showJoinFamily ? (
+            <form onSubmit={handleJoinFamily} className="create-family-form">
+              {error && <div className="form-error">{error}</div>}
+              <input
+                type="text"
+                value={joinFamilyId}
+                onChange={(e) => setJoinFamilyId(e.target.value)}
+                placeholder='Enter join code (e.g. ADK-4429)'
+                className="auth-input"
+                required
+              />
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowJoinFamily(false);
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={joining}>
+                  {joining ? "Joining..." : "Join"}
+                </button>
+              </div>
+            </form>
+          ) : showDirectAgency ? (
+            <div className="create-family-form">
+              {error && <div className="form-error">{error}</div>}
+              <p className="card-detail">
+                Register directly under a security agency without a family group.
+              </p>
+              {agencies.length > 0 ? (
+                <select
+                  className="auth-input"
+                  value={selectedAgencyId}
+                  onChange={(e) => setSelectedAgencyId(e.target.value)}
+                >
+                  <option value="">Select a security agency</option>
+                  {agencies.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="card-detail">No agencies available yet.</p>
+              )}
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowDirectAgency(false);
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={linkingAgency || !selectedAgencyId}
+                  onClick={handleLinkDirectAgency}
+                >
+                  {linkingAgency ? "Linking..." : "Link to Agency"}
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <p className="card-detail">
-                You're not part of a family group yet.
+                You're not part of a family group yet. Choose how you want to be protected.
               </p>
-              <button
-                className="btn-primary"
-                style={{ marginTop: "0.75rem" }}
-                onClick={() => setShowCreateFamily(true)}
-              >
-                Create a Family
-              </button>
+              <div className="form-actions-vertical" style={{ marginTop: "0.75rem" }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => setShowCreateFamily(true)}
+                >
+                  Create a Family
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowJoinFamily(true)}
+                >
+                  Join a Family
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowDirectAgency(true)}
+                >
+                  Register under Agency
+                </button>
+              </div>
             </>
           )}
         </section>
@@ -626,6 +967,9 @@ export default function Home() {
           ) : (
             <p className="card-detail">No safe zones set up yet.</p>
           )}
+          <Link to="/map" className="btn-secondary manage-map-link">
+            Manage on Map
+          </Link>
         </section>
       )}
 
