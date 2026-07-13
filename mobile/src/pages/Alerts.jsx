@@ -123,7 +123,7 @@ export default function FamilyAlerts() {
                     {alert.status.charAt(0).toUpperCase() + alert.status.slice(1)}
                   </span>
                   {alert.riskScore !== undefined && alert.riskScore !== null && (
-                    <span className="alert-card-risk">Risk: {alert.riskScore.toFixed(2)}</span>
+                    <span className="alert-card-risk">Risk: {Math.round(alert.riskScore * 100)}%</span>
                   )}
                 </div>
               </div>
@@ -137,7 +137,7 @@ export default function FamilyAlerts() {
         <div className="alert-modal-backdrop" onClick={() => setSelectedAlert(null)}>
           <div className="alert-modal-card" onClick={(e) => e.stopPropagation()}>
             <button className="btn-close-modal" onClick={() => setSelectedAlert(null)}>
-              &times;
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1.25em",height:"1.25em"}}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
             
             <div className="modal-header">
@@ -168,7 +168,7 @@ export default function FamilyAlerts() {
                 {selectedAlert.riskScore !== undefined && selectedAlert.riskScore !== null && (
                   <div className="modal-tel-item">
                     <span className="modal-tel-lbl">Risk Score</span>
-                    <span className="modal-tel-val">{selectedAlert.riskScore.toFixed(2)}</span>
+                    <span className="modal-tel-val">{Math.round(selectedAlert.riskScore * 100)}%</span>
                   </div>
                 )}
               </div>

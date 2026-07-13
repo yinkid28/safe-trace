@@ -160,8 +160,8 @@ export default function AlertDetail() {
     <div className="alert-detail-page">
       {/* HEADER BARS */}
       <div className="detail-top-nav">
-        <Link to="/" className="btn-back-feed">
-          &larr; Back to Dashboard
+        <Link to="/dashboard" className="btn-back-feed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1em",height:"1em",verticalAlign:"middle"}}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg> Back to Dashboard
         </Link>
         <div className="status-selector-wrapper">
           <label className="select-lbl">Incident Status: </label>
@@ -210,7 +210,7 @@ export default function AlertDetail() {
               {alertData.riskScore !== undefined && alertData.riskScore !== null && (
                 <div className="meta-field">
                   <span className="field-lbl">Movement Risk Score</span>
-                  <span className="field-val risk-value">{alertData.riskScore.toFixed(2)}</span>
+                  <span className="field-val risk-value">{Math.round(alertData.riskScore * 100)}%</span>
                 </div>
               )}
             </div>
@@ -247,7 +247,7 @@ export default function AlertDetail() {
                 </MapContainer>
               </div>
               <div className="coordinates-readout">
-                <span>📍 Location Coordinates: <strong>{alertData.lastKnownLocation.lat.toFixed(5)} N, {alertData.lastKnownLocation.lng.toFixed(5)} E</strong></span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.9em",height:"0.9em",verticalAlign:"middle",display:"inline"}}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg> Location Coordinates: <strong>{alertData.lastKnownLocation.lat.toFixed(5)} N, {alertData.lastKnownLocation.lng.toFixed(5)} E</strong></span>
                 {alertData.locationName && (
                   <span className="loc-name-txt">Location Name: <strong>{alertData.locationName}</strong></span>
                 )}
@@ -258,7 +258,7 @@ export default function AlertDetail() {
           {/* AI EXPLANATIONS */}
           {alertData.explanations?.length > 0 && (
             <section className="detail-card-section ai-explanations-card">
-              <h3 className="card-inner-title danger-text">🤖 AI Anomaly Explanation Log</h3>
+              <h3 className="card-inner-title danger-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1em",height:"1em",verticalAlign:"middle",display:"inline",marginRight:"0.3em"}}><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" /><path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" /></svg>AI Anomaly Explanation Log</h3>
               <ul className="details-ai-list">
                 {alertData.explanations.map((exp, i) => (
                   <li key={i} className="details-ai-item">{exp}</li>
@@ -278,7 +278,7 @@ export default function AlertDetail() {
                 {alertData.evidenceUrls.map((url, i) => (
                   <div key={i} className="evidence-thumbnail-wrapper" onClick={() => setSelectedPhoto(url)}>
                     <img src={url} alt="Emergency capture" className="evidence-thumbnail" />
-                    <span className="zoom-hover-hint">🔍 Expand</span>
+                    <span className="zoom-hover-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.75em",height:"0.75em",verticalAlign:"middle",display:"inline",marginRight:"0.2em"}}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" /></svg>Expand</span>
                   </div>
                 ))}
               </div>
@@ -343,12 +343,12 @@ export default function AlertDetail() {
         <div className="photo-lightbox-backdrop" onClick={() => setSelectedPhoto(null)}>
           <div className="photo-lightbox-content" onClick={(e) => e.stopPropagation()}>
             <button className="btn-close-lightbox" onClick={() => setSelectedPhoto(null)}>
-              &times;
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1.5em",height:"1.5em"}}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
             <img src={selectedPhoto} alt="Full view" className="lightbox-img" />
             <div className="lightbox-actions-strip">
               <a href={selectedPhoto} target="_blank" rel="noreferrer" className="btn-lightbox-download" download>
-                💾 Open Full Resolution Link
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1em",height:"1em",verticalAlign:"middle",display:"inline",marginRight:"0.3em"}}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Open Full Resolution Link
               </a>
             </div>
           </div>

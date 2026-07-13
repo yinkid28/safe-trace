@@ -30,10 +30,10 @@ const createDotIcon = (colorClass, textSymbol) => {
   });
 };
 
-const panicIcon = createDotIcon("panic-dot", "🚨");
-const anomalyIcon = createDotIcon("anomaly-dot", "🤖");
-const offlineIcon = createDotIcon("offline-dot", "🔌");
-const checkinIcon = createDotIcon("checkin-dot", "🕒");
+const panicIcon = createDotIcon("panic-dot", '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>');
+const anomalyIcon = createDotIcon("anomaly-dot", '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M9 2v2"/><path d="M15 20v2"/><path d="M9 20v2"/><path d="M20 9h2"/><path d="M20 15h2"/><path d="M2 9h2"/><path d="M2 15h2"/></svg>');
+const offlineIcon = createDotIcon("offline-dot", '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 017 0"/><path d="M2 8.82a15 15 0 014.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 012.22 1.68"/><path d="M5 12.86a10 10 0 013.66-2.54"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>');
+const checkinIcon = createDotIcon("checkin-dot", '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>');
 
 export default function MapView() {
   const { user } = useAuth();
@@ -133,7 +133,7 @@ export default function MapView() {
                     <p className="popup-details">Last seen near {alert.locationName || "Yaba"}</p>
                     <div className="popup-divider"></div>
                     <Link to={`/alerts/${alert.id}`} className="btn-popup-open-details">
-                      Open Incident Details &rarr;
+                      Open Incident Details <span style={{display:"inline-block",verticalAlign:"middle",width:"0.85em",height:"0.85em"}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></span>
                     </Link>
                   </div>
                 </Popup>

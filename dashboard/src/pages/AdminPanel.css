@@ -102,7 +102,10 @@
 }
 
 .admin-empty-state .empty-icon {
-  font-size: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
 }
 
 .admin-empty-state p {
@@ -282,7 +285,10 @@
 }
 
 .admin-access-denied .denied-icon {
-  font-size: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-danger);
 }
 
 .admin-access-denied h2 {

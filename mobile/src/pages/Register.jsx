@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
+import SafeTraceLogo from "../components/SafeTraceLogo";
 import "./Auth.css";
 
 // Agency codes map to Firestore agency doc IDs.
@@ -87,7 +88,7 @@ export default function Register() {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <h1 className="auth-logo">SafeTrace</h1>
+          <SafeTraceLogo size="md" />
           <p className="auth-subtitle">How will you use SafeTrace?</p>
 
           <div className="role-options">
@@ -136,7 +137,7 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-card">
         <button type="button" className="back-btn" onClick={() => setStep(1)}>
-          &larr; Back
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.9em",height:"0.9em",verticalAlign:"middle",display:"inline",marginRight:"0.2em"}}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg> Back
         </button>
         <h1 className="auth-logo">SafeTrace</h1>
         <p className="auth-subtitle">

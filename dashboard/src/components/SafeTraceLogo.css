@@ -1,0 +1,142 @@
+/* ==========================================================
+   SafeTraceLogo — Pure SVG + CSS
+   No PNG dependency. Two modes:
+     1. SVG icon only  (small sizes / variant="light")
+     2. Full logo      (shield + text, optional animation)
+   ========================================================== */
+
+.st-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+
+/* ======================== ANIMATION MODE ======================== */
+
+/* Shield border — draws on via stroke-dasharray */
+.st-logo--animate .st-shield-stroke {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: st-shield-stroke 4s ease-in-out infinite;
+}
+
+/* Shield white fill — fades in after border draws */
+.st-logo--animate .st-shield-fill {
+  animation: st-shield-fill 4s ease-in-out infinite;
+}
+
+/* S-road — draws on after shield forms */
+.st-logo--animate .st-road {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: st-road 4s ease-in-out infinite;
+}
+
+/* Road start dot */
+.st-logo--animate .st-road-dot {
+  animation: st-road-dot 4s ease-in-out infinite;
+}
+
+/* Pin group (teardrop + center dot) */
+.st-logo--animate .st-pin-group {
+  animation: st-pin 4s ease-in-out infinite;
+}
+
+/* Signal waves — staggered pulse */
+.st-logo--animate .st-wave-1 { animation: st-w1 4s ease-out infinite; }
+.st-logo--animate .st-wave-2 { animation: st-w2 4s ease-out infinite; }
+.st-logo--animate .st-wave-3 { animation: st-w3 4s ease-out infinite; }
+
+/* "SafeTrace" text */
+.st-logo--animate .st-text-main {
+  animation: st-text 4s ease-in-out infinite;
+}
+
+/* Tagline + dashes */
+.st-logo--animate .st-tagline {
+  animation: st-tagline 4s ease-in-out infinite;
+}
+
+
+/* ======================== KEYFRAMES ======================== */
+
+/* Shield border: draws on 3→30%, holds, fades 75→90% */
+@keyframes st-shield-stroke {
+  0%, 3%    { stroke-dashoffset: 1000; opacity: 0; }
+  6%        { opacity: 1; }
+  30%       { stroke-dashoffset: 0; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Shield fill: invisible while border draws, fades in 25→38% */
+@keyframes st-shield-fill {
+  0%, 22%   { opacity: 0; }
+  35%       { opacity: 1; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Road: draws on 28→48%, holds, fades */
+@keyframes st-road {
+  0%, 26%   { stroke-dashoffset: 600; opacity: 0; }
+  30%       { opacity: 1; }
+  50%       { stroke-dashoffset: 0; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Road dot: appears with road */
+@keyframes st-road-dot {
+  0%, 28%   { opacity: 0; }
+  35%       { opacity: 1; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Pin: appears after road reaches top */
+@keyframes st-pin {
+  0%, 44%   { opacity: 0; }
+  52%       { opacity: 1; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Wave arcs: staggered pulse after pin appears */
+@keyframes st-w1 {
+  0%, 50%   { opacity: 0; }
+  56%       { opacity: 0.9; }
+  75%       { opacity: 0.9; }
+  90%, 100% { opacity: 0; }
+}
+@keyframes st-w2 {
+  0%, 53%   { opacity: 0; }
+  59%       { opacity: 0.8; }
+  75%       { opacity: 0.8; }
+  90%, 100% { opacity: 0; }
+}
+@keyframes st-w3 {
+  0%, 56%   { opacity: 0; }
+  62%       { opacity: 0.7; }
+  75%       { opacity: 0.7; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Text: fades in after shield + road are drawn */
+@keyframes st-text {
+  0%, 45%   { opacity: 0; }
+  55%       { opacity: 1; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+
+/* Tagline: last element to appear */
+@keyframes st-tagline {
+  0%, 52%   { opacity: 0; }
+  60%       { opacity: 1; }
+  75%       { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}

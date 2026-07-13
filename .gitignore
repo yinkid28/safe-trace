@@ -52,3 +52,13 @@ mobile/node_modules/
 mobile/dist/
 mobile/android/
 mobile/ios/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+
+# Claude Code
+.claude/
+
+# Windows artifacts
+nul

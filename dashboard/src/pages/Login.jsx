@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import SafeTraceLogo from "../components/SafeTraceLogo";
 import "./Login.css";
 
 export default function Login() {
@@ -86,8 +87,7 @@ export default function Login() {
 
       <div className="login-card-container">
         <div className="login-card-header">
-          <div className="login-logo-lock">🛡️</div>
-          <h1 className="login-logo-title">SafeTrace</h1>
+          <div className="login-logo-lock"><SafeTraceLogo size="md" /></div>
           <p className="login-logo-subtitle">Security Agency Command Center</p>
         </div>
 

@@ -242,7 +242,7 @@ export default function FamilyMap() {
 
           {activeAlerts.length > 0 && (
             <div className="active-alerts-overlay-card">
-              <h3 className="sidebar-section-title danger-text">⚠️ Emergency Alerts</h3>
+              <h3 className="sidebar-section-title danger-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1em",height:"1em",verticalAlign:"middle",display:"inline",marginRight:"0.3em"}}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>Emergency Alerts</h3>
               <div className="active-alerts-list">
                 {activeAlerts.map((alert) => {
                   const pos = alert.lastKnownLocation ? [alert.lastKnownLocation.lat, alert.lastKnownLocation.lng] : null;

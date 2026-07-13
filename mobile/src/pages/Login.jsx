@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
+import SafeTraceLogo from "../components/SafeTraceLogo";
 import "./Auth.css";
 
 export default function Login() {
@@ -75,7 +76,7 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1 className="auth-logo">SafeTrace</h1>
+        <SafeTraceLogo size="md" />
         <p className="auth-subtitle">Stay safe, stay connected</p>
 
         {resetMode ? (

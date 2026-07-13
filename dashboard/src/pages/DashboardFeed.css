@@ -34,7 +34,14 @@
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--text-secondary);
 }
 
 .feed-search-input {
@@ -135,7 +142,10 @@
 }
 
 .empty-feed-icon {
-  font-size: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
 }
 
 .empty-feed-text {

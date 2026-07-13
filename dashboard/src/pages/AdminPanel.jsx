@@ -51,7 +51,7 @@ export default function AdminPanel() {
   if (!isAdmin) {
     return (
       <div className="admin-access-denied">
-        <span className="denied-icon">🚫</span>
+        <span className="denied-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="48" height="48"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg></span>
         <h2>Access Denied</h2>
         <p>You do not have permission to view this page. Platform admin access required.</p>
       </div>
@@ -130,7 +130,7 @@ export default function AdminPanel() {
       {/* Agency cards */}
       {filteredAgencies.length === 0 ? (
         <div className="admin-empty-state">
-          <span className="empty-icon">🏢</span>
+          <span className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="48" height="48"><path d="M6 22V4a2 2 0 012-2h8a2 2 0 012 2v18" /><path d="M6 12H4a2 2 0 00-2 2v6a2 2 0 002 2h2" /><path d="M18 9h2a2 2 0 012 2v9a2 2 0 01-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" /></svg></span>
           <p>No {activeTab === "all" ? "" : activeTab} agencies found.</p>
         </div>
       ) : (

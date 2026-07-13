@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.2.0",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/geolocation": "^8.2.0",
+    "@ionic/pwa-elements": "^3.4.0",
     "firebase": "^12.15.0",
     "leaflet": "^1.9.4",
     "react": "^19.2.6",

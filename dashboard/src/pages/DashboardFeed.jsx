@@ -94,7 +94,7 @@ export default function DashboardFeed() {
           <p className="feed-subtitle">Real-time status of family SOS distress signals</p>
         </div>
         <div className="feed-header-search">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></span>
           <input
             type="text"
             placeholder="Search by name, location, or type..."
@@ -131,7 +131,7 @@ export default function DashboardFeed() {
       {/* ALERTS FEED CONTAINER */}
       {sortedAlerts.length === 0 ? (
         <div className="feed-empty-card">
-          <span className="empty-feed-icon">🚨</span>
+          <span className="empty-feed-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="48" height="48"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /><line x1="12" y1="2" x2="12" y2="5" /></svg></span>
           <p className="empty-feed-text">No active safety alerts. Terminal monitoring is fully secure.</p>
         </div>
       ) : (
@@ -164,7 +164,7 @@ export default function DashboardFeed() {
                     </div>
                     <div className="profile-details">
                       <h3 className="profile-user-name">{alert.userName}</h3>
-                      <span className="profile-loc-details">Near: 📍 {alert.locationName || "Unknown"}</span>
+                      <span className="profile-loc-details">Near: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.85em",height:"0.85em",verticalAlign:"middle",display:"inline"}}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg> {alert.locationName || "Unknown"}</span>
                     </div>
                   </div>
 
@@ -178,7 +178,7 @@ export default function DashboardFeed() {
                     {alert.riskScore !== undefined && alert.riskScore !== null && (
                       <div className="telemetry-item-row">
                         <span className="tel-lbl">Risk Index:</span>
-                        <span className={`tel-val risk-score-txt`}>{alert.riskScore.toFixed(2)}</span>
+                        <span className={`tel-val risk-score-txt`}>{Math.round(alert.riskScore * 100)}%</span>
                       </div>
                     )}
                     {alert.evidenceUrls?.length > 0 && (
@@ -195,8 +195,8 @@ export default function DashboardFeed() {
                   <span className={`alert-status-text ${alert.status}`}>
                     Status: {alert.status === "new" ? "UNACKNOWLEDGED" : alert.status.toUpperCase()}
                   </span>
-                  <Link to={`/alerts/${alert.id}`} className="btn-alert-details-link">
-                    Open Details &rarr;
+                  <Link to={`/dashboard/alerts/${alert.id}`} className="btn-alert-details-link">
+                    Open Details <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.85em",height:"0.85em",verticalAlign:"middle",display:"inline"}}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
                   </Link>
                 </div>
               </div>

@@ -113,6 +113,12 @@
   justify-content: center;
   font-size: 0.85rem;
   animation: mapPulse 2s infinite;
+  overflow: hidden;
+}
+
+.map-view-dot svg {
+  width: 14px;
+  height: 14px;
 }
 
 .panic-dot {
