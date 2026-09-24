@@ -24,17 +24,13 @@ import { useFamilyMembers } from "../hooks/useFamilyMembers";
 import { useAnomalyDetection } from "../hooks/useAnomalyDetection";
 import "./Home.css";
 
-// Workaround for Leaflet default marker icons failing under Vite
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-let DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+// Pulsing blue dot for current user (matches Map tab style)
+const userIcon = L.divIcon({
+  className: "custom-marker user-marker",
+  html: `<div class="user-pulse-ring"></div><div class="user-dot"></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
 const DEFAULT_AGENCY_ID = "agency_yaba";
 
@@ -693,10 +689,10 @@ export default function Home() {
 
               {/* Draw trajectory route polyline */}
               {journeyPath.length > 1 && (
-                <Polyline positions={journeyPath.map(p => [p.lat, p.lng])} color="#6B4F3A" weight={4} />
+                <Polyline positions={journeyPath.map(p => [p.lat, p.lng])} color="#3b82f6" weight={4} opacity={0.7} />
               )}
 
-              <Marker position={[activePosition.lat, activePosition.lng]}>
+              <Marker position={[activePosition.lat, activePosition.lng]} icon={userIcon}>
                 <Popup>
                   <strong>{user.name}</strong> <br />
                   Speed: {activePosition.speed} km/h <br />
