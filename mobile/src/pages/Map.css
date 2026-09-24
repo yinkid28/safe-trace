@@ -1,40 +1,15 @@
+/* ===== Full-screen map container ===== */
 .map-page-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 80px); /* fill view above bottom nav */
+  position: relative;
+  height: calc(100vh - 80px);
   height: calc(100dvh - 80px);
-  gap: 0.75rem;
-}
-
-.map-page-header {
-  margin-bottom: 0.25rem;
-}
-
-.map-page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.map-page-subtitle {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.map-layout {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
   overflow: hidden;
 }
 
 .leaflet-map-wrapper {
-  flex: 1.5;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .family-route-map {
@@ -43,40 +18,156 @@
   z-index: 1;
 }
 
-.family-status-sidebar {
-  flex: 1;
+/* ===== Floating action buttons ===== */
+.map-floating-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.map-floating-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 1rem;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: box-shadow 0.2s;
 }
 
-.sidebar-section-title {
+.map-floating-btn:active {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transform: scale(0.95);
+}
+
+.map-floating-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ===== Query error (floating banner) ===== */
+.map-query-error {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 5rem;
+  z-index: 15;
+  background: var(--color-danger-light, #fef2f2);
+  color: var(--color-danger, #D92D20);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  border: 1px solid rgba(217, 45, 32, 0.2);
 }
 
-.no-members-text {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 1rem 0;
+/* ===== Bottom sheet ===== */
+.map-bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  pointer-events: none;
 }
 
-.members-status-list {
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 19;
+  pointer-events: auto;
+}
+
+.sheet-panel {
+  position: relative;
+  z-index: 21;
+  background: var(--color-surface);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 60vh;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
-.member-status-card {
+.map-bottom-sheet.collapsed .sheet-panel {
+  transform: translateY(calc(100% - 80px));
+}
+
+.map-bottom-sheet.expanded .sheet-panel {
+  transform: translateY(0);
+}
+
+/* Handle area */
+.sheet-handle-area {
+  cursor: pointer;
+  padding: 0.5rem 1rem 0.75rem;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.sheet-handle-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-disabled);
+  margin: 0 auto 0.5rem;
+}
+
+.sheet-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sheet-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sheet-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheet-member-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.sheet-alert-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  background: var(--color-danger);
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+}
+
+/* Sheet scrollable content */
+.sheet-content {
+  overflow-y: auto;
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===== Member cards in sheet ===== */
+.sheet-member-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -84,17 +175,19 @@
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
 }
 
-.member-status-card:hover {
-  border-color: var(--color-primary-light);
+.sheet-member-card.you-card {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.04);
 }
 
 .member-status-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .member-avatar {
@@ -109,6 +202,11 @@
   font-weight: 700;
   font-size: 1rem;
   position: relative;
+  flex-shrink: 0;
+}
+
+.member-avatar.you-avatar {
+  background: #3b82f6;
 }
 
 .avatar-status-dot {
@@ -132,12 +230,22 @@
 .member-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .member-name-text {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .member-sub-text {
@@ -154,39 +262,52 @@
   border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 0.75rem;
+  flex-shrink: 0;
+  min-height: 32px;
 }
 
-.btn-locate-member:hover {
+.btn-locate-member:active {
   background: var(--color-primary-light);
   color: white;
 }
 
-/* Active Alerts card styling */
-.active-alerts-overlay-card {
-  border: 1px solid var(--color-danger);
-  background: var(--color-danger-light);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem;
+/* ===== No members text ===== */
+.no-members-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+/* ===== Alerts section in sheet ===== */
+.sheet-alerts-section {
   margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
 }
 
-.active-alerts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.sheet-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
 }
 
-.active-alert-item {
+.sheet-alert-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: var(--color-danger-light);
   border: 1px solid rgba(217, 45, 32, 0.2);
   padding: 0.5rem 0.6rem;
   border-radius: var(--radius-sm);
+  margin-bottom: 0.4rem;
+}
+
+.alert-item-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .alert-user-name {
@@ -197,41 +318,148 @@
 }
 
 .alert-details-sub {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
   display: block;
   margin-top: 0.1rem;
+}
+
+.alert-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 .btn-locate-alert {
   background: var(--color-danger);
   color: white;
   border: none;
-  padding: 0.3rem 0.6rem;
+  padding: 0.3rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
+  min-height: 28px;
 }
 
-/* Custom Marker Styling */
-.marker-dot {
-  width: 16px;
-  height: 16px;
+.btn-dismiss-alert {
+  background: transparent;
+  border: 1px solid rgba(217, 45, 32, 0.3);
+  color: var(--color-danger);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.btn-dismiss-alert:active {
+  background: var(--color-danger);
+  color: white;
+}
+
+/* ===== No-alerts calm state ===== */
+.no-alerts-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.no-alerts-text {
+  font-size: 0.8rem;
+  color: var(--color-safe);
+}
+
+/* ===== No family overlay card ===== */
+.no-family-overlay {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 10;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.no-family-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.no-family-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ===== Custom map markers ===== */
+
+/* Current user: pulsing blue dot */
+.user-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.user-pulse-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  background: rgba(59, 130, 246, 0.3);
+  animation: userPulse 2s ease-out infinite;
+}
+
+@keyframes userPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
 
 .user-dot {
-  background: #3b82f6; /* Blue dot for current user */
+  position: relative;
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+  margin: 5px;
 }
 
-.online-dot {
-  background: var(--color-safe);
+/* Family member: avatar circle with initial letter */
+.member-marker {
+  background: transparent !important;
+  border: none !important;
 }
 
-.offline-dot {
-  background: var(--color-disabled);
+.member-marker-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* Alert marker: red pulsing dot with ! */
+.alert-marker {
+  background: transparent !important;
+  border: none !important;
 }
 
 .alert-dot {
@@ -259,12 +487,7 @@
   100% { transform: scale(1); }
 }
 
-@media (min-width: 768px) {
-  .map-layout {
-    flex-direction: row;
-  }
-  .family-status-sidebar {
-    width: 280px;
-    flex-shrink: 0;
-  }
+/* ===== Danger text utility ===== */
+.danger-text {
+  color: var(--color-danger, #D92D20);
 }

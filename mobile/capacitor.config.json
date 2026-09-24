@@ -1,0 +1,8 @@
+{
+  "appId": "com.safetrace.app",
+  "appName": "SafeTrace",
+  "webDir": "dist",
+  "android": {
+    "useLegacyBridge": true
+  }
+}

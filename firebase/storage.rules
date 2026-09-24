@@ -22,6 +22,12 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Public APK downloads: anyone can read, no one can write via client
+    match /downloads/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Block everything else
     match /{allPaths=**} {
       allow read, write: if false;

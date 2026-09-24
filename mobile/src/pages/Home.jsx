@@ -728,7 +728,7 @@ export default function Home() {
           <p className="card-detail">
             {family.members?.length || 0} member{family.members?.length !== 1 ? "s" : ""}
           </p>
-          {user.role === "family_admin" && family?.joinCode && (
+          {user.uid === family?.adminUserId && family?.joinCode && (
             <div className="family-id-row">
               <span className="family-id-label">Join Code:</span>
               <code className="family-id-value">{family.joinCode}</code>
@@ -740,6 +740,27 @@ export default function Home() {
               </button>
             </div>
           )}
+          {/* Family members list */}
+          <div className="family-members-list">
+            <h3 className="members-list-title">Members</h3>
+            <div className="member-item">
+              <span className={`status-dot ${user.phoneStatus === "online" ? "online" : "offline"}`} />
+              <span className="member-name">{user.name} (You)</span>
+            </div>
+            {members.length > 0 ? (
+              members.map((m) => (
+                <div key={m.uid} className="member-item">
+                  <span className={`status-dot ${m.phoneStatus === "online" ? "online" : "offline"}`} />
+                  <span className="member-name">{m.name}</span>
+                  <span className="member-status-text">
+                    {m.phoneStatus === "online" ? "Online" : "Offline"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="card-detail">No other members yet. Share your join code to invite family.</p>
+            )}
+          </div>
         </section>
       )}
 

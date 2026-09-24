@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { formatLastSeen } from "../utils/formatTime";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 
 /**
  * Build a system prompt that gives the LLM full context about family members

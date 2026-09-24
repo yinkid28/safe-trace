@@ -52,6 +52,14 @@ export function AuthProvider({ children }) {
         await signOut(auth);
         throw new Error("No account profile found. Please register a new account.");
       }
+      // Mark user as online
+      try {
+        await updateDoc(doc(db, "users", result.user.uid), {
+          phoneStatus: "online",
+        });
+      } catch (_) {
+        // Best effort — don't block login if status update fails
+      }
     } catch (err) {
       setError(err.message);
       throw err;

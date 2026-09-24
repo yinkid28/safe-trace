@@ -1,271 +1,385 @@
 import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { useLocation } from "../hooks/useLocation";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./Map.css";
 
-// Workaround for default Leaflet icons in Vite
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-const DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom Icons for different states
+// Pulsing blue dot for current user
 const userIcon = L.divIcon({
   className: "custom-marker user-marker",
-  html: `<div class="marker-dot user-dot"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
+  html: `<div class="user-pulse-ring"></div><div class="user-dot"></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
-const onlineIcon = L.divIcon({
-  className: "custom-marker online-marker",
-  html: `<div class="marker-dot online-dot"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
+// Avatar circle with initial letter for family members
+const createMemberIcon = (name, isOnline) => {
+  const initial = (name || "?").charAt(0).toUpperCase();
+  const bg = isOnline ? "#2E7D32" : "#BDBDBD";
+  return L.divIcon({
+    className: "custom-marker member-marker",
+    html: `<div class="member-marker-avatar" style="background:${bg}">${initial}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
 
-const offlineIcon = L.divIcon({
-  className: "custom-marker offline-marker",
-  html: `<div class="marker-dot offline-dot"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
-
+// Red pulsing alert marker
 const alertIcon = L.divIcon({
   className: "custom-marker alert-marker",
-  html: `<div class="marker-dot alert-dot"><span class="alert-icon-excl">!</span></div>`,
+  html: `<div class="alert-dot"><span class="alert-icon-excl">!</span></div>`,
   iconSize: [26, 26],
   iconAnchor: [13, 13],
 });
 
-// Component to programmatically pan map
+// Programmatically pan/zoom map
 function RecenterMap({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.setView(center, 14);
-    }
+    if (center) map.setView(center, 15);
   }, [center, map]);
   return null;
 }
 
+// Shared tile layer config
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
+
 export default function FamilyMap() {
   const { user } = useAuth();
+  const { position } = useLocation();
   const [familyMembers, setFamilyMembers] = useState([]);
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [selectedCenter, setSelectedCenter] = useState(null);
+  const [queryError, setQueryError] = useState(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
+  // Subscribe to family data
   useEffect(() => {
     if (!user?.familyId) return;
+    setQueryError(null);
 
-    // 1. Subscribe to family members' location changes
     const qMembers = query(
       collection(db, "users"),
       where("familyId", "==", user.familyId)
     );
-    const unsubscribeMembers = onSnapshot(qMembers, (snap) => {
-      const list = [];
-      snap.forEach((doc) => {
-        if (doc.id !== user.uid) {
-          list.push({ uid: doc.id, ...doc.data() });
-        }
-      });
-      setFamilyMembers(list);
-    });
+    const unsubMembers = onSnapshot(
+      qMembers,
+      (snap) => {
+        const list = [];
+        snap.forEach((d) => {
+          if (d.id !== user.uid) list.push({ uid: d.id, ...d.data() });
+        });
+        setFamilyMembers(list);
+      },
+      (err) => {
+        console.warn("Family members query error:", err.message);
+        setQueryError("Could not load family members.");
+      }
+    );
 
-    // 2. Subscribe to active alerts in the family
     const qAlerts = query(
       collection(db, "alerts"),
       where("familyId", "==", user.familyId),
       where("status", "in", ["new", "acknowledged"])
     );
-    const unsubscribeAlerts = onSnapshot(qAlerts, (snap) => {
-      const list = [];
-      snap.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
-      setActiveAlerts(list);
-    });
+    const unsubAlerts = onSnapshot(
+      qAlerts,
+      (snap) => {
+        const list = [];
+        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        setActiveAlerts(list);
+      },
+      (err) => console.warn("Alerts query error:", err.message)
+    );
 
-    return () => {
-      unsubscribeMembers();
-      unsubscribeAlerts();
-    };
+    return () => { unsubMembers(); unsubAlerts(); };
   }, [user?.familyId, user?.uid]);
 
-  const defaultCenter = [6.5095, 3.3810]; // Sabo, Yaba center
+  const currentUserPos = position ? [position.lat, position.lng] : null;
+  const defaultCenter = currentUserPos || [6.5095, 3.3810];
 
-  const getMemberPosition = (member) => {
-    if (member.lastLocation?.lat && member.lastLocation?.lng) {
-      return [member.lastLocation.lat, member.lastLocation.lng];
-    }
-    return null;
-  };
+  const getMemberPosition = (m) =>
+    m.lastLocation?.lat && m.lastLocation?.lng
+      ? [m.lastLocation.lat, m.lastLocation.lng]
+      : null;
 
-  const formatLastSeen = (timestamp) => {
-    if (!timestamp) return "Never";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diff = Math.floor((new Date() - date) / 1000); // seconds
+  const formatLastSeen = (ts) => {
+    if (!ts) return "Never";
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
     if (diff < 60) return "Just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  return (
-    <div className="map-page-container">
-      <header className="map-page-header">
-        <h1 className="map-page-title">Safety Map</h1>
-        <p className="map-page-subtitle">Real-time tracking & distress alerts</p>
-      </header>
+  const handleDismissAlert = async (alertId) => {
+    try {
+      await updateDoc(doc(db, "alerts", alertId), {
+        status: "resolved",
+        resolvedAt: serverTimestamp(),
+        resolvedBy: user.uid,
+      });
+    } catch (err) {
+      console.error("Failed to dismiss alert:", err);
+    }
+  };
 
-      <div className="map-layout">
-        {/* Leaflet Map */}
+  // ===== No family state =====
+  if (!user?.familyId) {
+    return (
+      <div className="map-page-container">
         <div className="leaflet-map-wrapper">
-          <MapContainer
-            center={defaultCenter}
-            zoom={13}
-            scrollWheelZoom={true}
-            className="family-route-map"
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {selectedCenter && <RecenterMap center={selectedCenter} />}
-
-            {/* Current User Marker */}
-            {user.lastLocation?.lat && user.lastLocation?.lng && (
-              <Marker position={[user.lastLocation.lat, user.lastLocation.lng]} icon={userIcon}>
-                <Popup>
-                  <strong>You (Current Location)</strong> <br />
-                  Status: {user.phoneStatus === "online" ? "Online" : "Offline"}
-                </Popup>
+          <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={true} className="family-route-map">
+            <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
+            {currentUserPos && (
+              <Marker position={currentUserPos} icon={userIcon}>
+                <Popup><strong>You</strong></Popup>
               </Marker>
             )}
-
-            {/* Family Members' Location Markers */}
-            {familyMembers.map((member) => {
-              const pos = getMemberPosition(member);
-              if (!pos) return null;
-              const isOnline = member.phoneStatus === "online";
-              return (
-                <Marker key={member.uid} position={pos} icon={isOnline ? onlineIcon : offlineIcon}>
-                  <Popup>
-                    <strong>{member.name}</strong> <br />
-                    Phone Status: {isOnline ? "Online" : "Offline"} <br />
-                    Speed: {member.lastLocation?.speed ? `${member.lastLocation.speed} km/h` : "Stopped"} <br />
-                    Last seen: {formatLastSeen(member.lastSeen)}
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            {/* Active Alerts Markers and Trajectories */}
-            {activeAlerts.map((alert) => {
-              const loc = alert.lastKnownLocation;
-              if (!loc?.lat || !loc?.lng) return null;
-              
-              const routePositions = alert.trajectory 
-                ? alert.trajectory.map(p => [p.lat, p.lng]) 
-                : [];
-
-              return (
-                <div key={alert.id}>
-                  {/* Draw trajectory path polyline */}
-                  {routePositions.length > 1 && (
-                    <Polyline positions={routePositions} color="#D92D20" weight={4} dashArray="5, 8" />
-                  )}
-                  {/* Draw SOS icon at last known position */}
-                  <Marker position={[loc.lat, loc.lng]} icon={alertIcon}>
-                    <Popup className="alert-popup">
-                      <div className="alert-popup-content">
-                        <strong className="danger-text">DISTRESS ALERT: {alert.userName}</strong> <br />
-                        Type: {alert.type.toUpperCase()} <br />
-                        Location: {alert.locationName || "Unknown"} <br />
-                        Triggered: {alert.createdAt?.toDate ? alert.createdAt.toDate().toLocaleTimeString() : new Date(alert.createdAt).toLocaleTimeString()}
-                      </div>
-                    </Popup>
-                  </Marker>
-                </div>
-              );
-            })}
           </MapContainer>
         </div>
 
-        {/* Family Directory / Telemetry Overlay */}
-        <div className="family-status-sidebar">
-          <h3 className="sidebar-section-title">Family Circle</h3>
-          {familyMembers.length === 0 ? (
-            <p className="no-members-text">No family members registered yet.</p>
-          ) : (
-            <div className="members-status-list">
-              {familyMembers.map((member) => {
-                const pos = getMemberPosition(member);
-                const isOnline = member.phoneStatus === "online";
-                return (
-                  <div key={member.uid} className="member-status-card">
-                    <div className="member-status-info">
-                      <div className="member-avatar">
-                        {member.name.charAt(0)}
-                        <span className={`avatar-status-dot ${isOnline ? "online" : "offline"}`}></span>
-                      </div>
-                      <div className="member-text">
-                        <span className="member-name-text">{member.name}</span>
-                        <span className="member-sub-text">
-                          {pos ? `${member.lastLocation?.speed || 0} km/h` : "No GPS data"} &middot; {formatLastSeen(member.lastSeen)}
-                        </span>
-                      </div>
-                    </div>
-                    {pos && (
-                      <button
-                        className="btn-locate-member"
-                        onClick={() => setSelectedCenter(pos)}
-                      >
-                        Locate
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        {currentUserPos && (
+          <div className="map-floating-actions">
+            <button className="map-floating-btn" onClick={() => setSelectedCenter(currentUserPos)} aria-label="My location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <div className="no-family-overlay">
+          <h3 className="no-family-title">Join a Family Circle</h3>
+          <p className="no-family-desc">
+            Create or join a family on the Home tab to see live locations, track movement, and receive distress alerts here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Main map view =====
+  return (
+    <div className="map-page-container">
+      {queryError && <div className="map-query-error">{queryError}</div>}
+
+      {/* Full-screen Leaflet map */}
+      <div className="leaflet-map-wrapper">
+        <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={true} className="family-route-map">
+          <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
+          {selectedCenter && <RecenterMap center={selectedCenter} />}
+
+          {/* Current user — pulsing blue dot */}
+          {currentUserPos && (
+            <Marker position={currentUserPos} icon={userIcon}>
+              <Popup>
+                <strong>You</strong><br />
+                {position?.speed != null ? `Speed: ${position.speed} km/h` : "Stopped"}
+              </Popup>
+            </Marker>
           )}
 
-          {activeAlerts.length > 0 && (
-            <div className="active-alerts-overlay-card">
-              <h3 className="sidebar-section-title danger-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"1em",height:"1em",verticalAlign:"middle",display:"inline",marginRight:"0.3em"}}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>Emergency Alerts</h3>
-              <div className="active-alerts-list">
-                {activeAlerts.map((alert) => {
-                  const pos = alert.lastKnownLocation ? [alert.lastKnownLocation.lat, alert.lastKnownLocation.lng] : null;
-                  return (
-                    <div key={alert.id} className="active-alert-item">
-                      <div className="alert-item-text">
-                        <span className="alert-user-name">{alert.userName}</span>
-                        <span className="alert-details-sub">Triggered SOS near {alert.locationName}</span>
-                      </div>
-                      {pos && (
-                        <button
-                          className="btn-locate-alert"
-                          onClick={() => setSelectedCenter(pos)}
-                        >
-                          Focus
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+          {/* Family members — avatar markers */}
+          {familyMembers.map((member) => {
+            const pos = getMemberPosition(member);
+            if (!pos) return null;
+            const isOnline = member.phoneStatus === "online";
+            return (
+              <Marker key={member.uid} position={pos} icon={createMemberIcon(member.name, isOnline)}>
+                <Popup>
+                  <strong>{member.name}</strong><br />
+                  {isOnline ? "Online" : "Offline"}<br />
+                  Speed: {member.lastLocation?.speed ? `${member.lastLocation.speed} km/h` : "Stopped"}<br />
+                  Last seen: {formatLastSeen(member.lastSeen)}
+                </Popup>
+              </Marker>
+            );
+          })}
+
+          {/* Alert markers + trajectory polylines */}
+          {activeAlerts.map((alert) => {
+            const loc = alert.lastKnownLocation;
+            if (!loc?.lat || !loc?.lng) return null;
+            const routePositions = alert.trajectory
+              ? alert.trajectory.map((p) => [p.lat, p.lng])
+              : [];
+            return (
+              <div key={alert.id}>
+                {routePositions.length > 1 && (
+                  <Polyline positions={routePositions} color="#D92D20" weight={4} dashArray="5, 8" />
+                )}
+                <Marker position={[loc.lat, loc.lng]} icon={alertIcon}>
+                  <Popup>
+                    <strong style={{ color: "#D92D20" }}>DISTRESS: {alert.userName}</strong><br />
+                    Type: {alert.type?.toUpperCase()}<br />
+                    Location: {alert.locationName || "Unknown"}<br />
+                    Triggered: {alert.createdAt?.toDate
+                      ? alert.createdAt.toDate().toLocaleTimeString()
+                      : new Date(alert.createdAt).toLocaleTimeString()}
+                  </Popup>
+                </Marker>
+              </div>
+            );
+          })}
+
+          {/* Safe zone circles */}
+          {(user.safeZones || []).map((zone, i) =>
+            zone.lat && zone.lng ? (
+              <Circle
+                key={`zone-${i}`}
+                center={[zone.lat, zone.lng]}
+                radius={200}
+                pathOptions={{
+                  color: "#2E7D32",
+                  fillColor: "#2E7D32",
+                  fillOpacity: 0.1,
+                  weight: 1.5,
+                  opacity: 0.5,
+                }}
+              >
+                <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />Safe Zone (200m)</Popup>
+              </Circle>
+            ) : null
+          )}
+        </MapContainer>
+      </div>
+
+      {/* Floating buttons */}
+      <div className="map-floating-actions">
+        {currentUserPos && (
+          <button className="map-floating-btn" onClick={() => setSelectedCenter(currentUserPos)} aria-label="My location">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Bottom sheet */}
+      <div className={`map-bottom-sheet ${sheetExpanded ? "expanded" : "collapsed"}`}>
+        {sheetExpanded && <div className="sheet-backdrop" onClick={() => setSheetExpanded(false)} />}
+
+        <div className="sheet-panel">
+          {/* Handle + header */}
+          <div className="sheet-handle-area" onClick={() => setSheetExpanded(!sheetExpanded)}>
+            <div className="sheet-handle-bar" />
+            <div className="sheet-header-row">
+              <h3 className="sheet-title">Family Circle</h3>
+              <div className="sheet-header-meta">
+                <span className="sheet-member-count">{familyMembers.length + 1} members</span>
+                {activeAlerts.length > 0 && (
+                  <span className="sheet-alert-badge">
+                    {activeAlerts.length} alert{activeAlerts.length !== 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Expandable content */}
+          <div className="sheet-content">
+            {/* Current user */}
+            <div className="sheet-member-card you-card">
+              <div className="member-status-info">
+                <div className="member-avatar you-avatar">
+                  {user.name?.charAt(0) || "?"}
+                  <span className="avatar-status-dot online" />
+                </div>
+                <div className="member-text">
+                  <span className="member-name-text">{user.name} <span className="you-badge">(You)</span></span>
+                  <span className="member-sub-text">
+                    {currentUserPos ? `${position?.speed || 0} km/h` : "No GPS"} &middot; Now
+                  </span>
+                </div>
+              </div>
+              {currentUserPos && (
+                <button className="btn-locate-member" onClick={() => setSelectedCenter(currentUserPos)}>
+                  Center
+                </button>
+              )}
+            </div>
+
+            {/* Family members */}
+            {familyMembers.map((member) => {
+              const pos = getMemberPosition(member);
+              const isOnline = member.phoneStatus === "online";
+              return (
+                <div key={member.uid} className="sheet-member-card">
+                  <div className="member-status-info">
+                    <div className="member-avatar">
+                      {member.name?.charAt(0)}
+                      <span className={`avatar-status-dot ${isOnline ? "online" : "offline"}`} />
+                    </div>
+                    <div className="member-text">
+                      <span className="member-name-text">{member.name}</span>
+                      <span className="member-sub-text">
+                        {pos ? `${member.lastLocation?.speed || 0} km/h` : "No GPS"} &middot; {formatLastSeen(member.lastSeen)}
+                      </span>
+                    </div>
+                  </div>
+                  {pos && (
+                    <button className="btn-locate-member" onClick={() => setSelectedCenter(pos)}>
+                      Locate
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {familyMembers.length === 0 && (
+              <p className="no-members-text">You're the only member. Invite others from Home tab.</p>
+            )}
+
+            {/* Emergency Alerts */}
+            <div className="sheet-alerts-section">
+              <h4 className={`sheet-section-label ${activeAlerts.length > 0 ? "danger-text" : ""}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.9em", height: "0.9em", verticalAlign: "middle", marginRight: "0.3em" }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Emergency Alerts
+              </h4>
+
+              {activeAlerts.length === 0 ? (
+                <div className="no-alerts-row">
+                  <span className="no-alerts-text">All family members are safe.</span>
+                </div>
+              ) : (
+                activeAlerts.map((alert) => {
+                  const pos = alert.lastKnownLocation
+                    ? [alert.lastKnownLocation.lat, alert.lastKnownLocation.lng]
+                    : null;
+                  return (
+                    <div key={alert.id} className="sheet-alert-item">
+                      <div className="alert-item-text">
+                        <span className="alert-user-name">{alert.userName}</span>
+                        <span className="alert-details-sub">SOS near {alert.locationName || "Unknown"}</span>
+                      </div>
+                      <div className="alert-item-actions">
+                        {pos && (
+                          <button className="btn-locate-alert" onClick={() => setSelectedCenter(pos)}>
+                            Focus
+                          </button>
+                        )}
+                        <button className="btn-dismiss-alert" onClick={() => handleDismissAlert(alert.id)} aria-label="Dismiss alert">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.85em", height: "0.85em" }}>
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -41,14 +41,11 @@ export default function Landing() {
             family groups, live location sharing, and AI-powered anomaly detection.
           </p>
           <a
-            href="#download"
+            href="https://firebasestorage.googleapis.com/v0/b/safetrace-ab950.firebasestorage.app/o/downloads%2FSafeTrace.apk?alt=media"
             className="path-cta path-cta-primary"
-            onClick={(e) => {
-              e.preventDefault();
-              alert("The Android app will be available on the Play Store soon. For now, install via the development APK.");
-            }}
+            download="SafeTrace.apk"
           >
-            Get the App
+            Download the App
           </a>
         </div>
 

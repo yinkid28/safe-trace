@@ -478,6 +478,40 @@
   white-space: nowrap;
 }
 
+/* Family members list */
+.family-members-list {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.members-list-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+
+.member-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.member-status-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 /* Create family form */
 .create-family-form {
   display: flex;

@@ -42,6 +42,7 @@ htmlcov/
 
 # Firebase
 firebase/seed/serviceAccountKey.json
+firebase/public/
 .firebase/
 firebase-debug.log
 firestore-debug.log
@@ -62,3 +63,4 @@ dashboard/dist/
 
 # Windows artifacts
 nul
+.gstack/
