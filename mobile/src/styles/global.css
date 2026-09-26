@@ -14,13 +14,14 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-family);
   color: var(--text-primary);
-  background-color: var(--surface);
+  background-color: var(--color-background);
   line-height: 1.5;
   min-height: 100vh;
   min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -32,6 +33,7 @@ button {
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
 input,
@@ -39,6 +41,7 @@ select,
 textarea {
   font-family: inherit;
   font-size: 1rem;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Utility classes */

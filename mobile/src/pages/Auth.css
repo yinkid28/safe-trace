@@ -5,24 +5,25 @@
   min-height: 100vh;
   min-height: 100dvh;
   padding: 1rem;
-  background: var(--surface-muted);
+  background: var(--color-background);
 }
 
 .auth-card {
   width: 100%;
   max-width: 400px;
   background: var(--surface);
-  border-radius: var(--radius);
-  padding: 2rem 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem 1.75rem;
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-logo {
   text-align: center;
   color: var(--brand-primary);
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin-bottom: 0.25rem;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.3rem;
 }
 
 .auth-subtitle {
@@ -35,47 +36,54 @@
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .auth-label {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  font-weight: 500;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .auth-input {
-  padding: 0.7rem 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.8rem 0.9rem;
+  border: 2px solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--color-background);
   color: var(--text-primary);
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .auth-input:focus {
   outline: none;
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 2px rgba(92, 61, 46, 0.15);
+  box-shadow: 0 0 0 3px rgba(107, 79, 58, 0.12);
+  background: var(--surface);
 }
 
 .auth-button {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background: var(--brand-primary);
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: var(--color-primary-gradient);
   color: white;
   border: none;
   border-radius: var(--radius-sm);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
-  transition: background-color 0.15s;
+  box-shadow: 0 4px 12px rgba(107, 79, 58, 0.25);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .auth-button:hover:not(:disabled) {
-  background: var(--brand-primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(107, 79, 58, 0.3);
+}
+
+.auth-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .auth-button:disabled {
@@ -100,7 +108,7 @@
 
 .auth-footer a {
   color: var(--brand-primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Role selection */
@@ -115,29 +123,35 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  padding: 1.25rem;
-  background: var(--surface);
-  border: 2px solid var(--border);
+  gap: 0.5rem;
+  padding: 1.35rem;
+  background: var(--color-surface-raised);
+  border: 2px solid transparent;
   border-radius: var(--radius);
   text-align: center;
-  transition: border-color 0.15s, background-color 0.15s;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .role-card:hover {
   border-color: var(--brand-primary);
-  background: var(--surface-muted);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.role-card:active {
+  transform: scale(0.97);
 }
 
 .role-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   color: var(--brand-primary);
 }
 
 .role-title {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -161,7 +175,7 @@
 
 .input-hint {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--color-text-tertiary);
   font-weight: 400;
 }
 
@@ -170,7 +184,7 @@
   border: none;
   color: var(--brand-primary);
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
   text-align: right;
@@ -182,8 +196,8 @@
 
 .auth-reset-success {
   padding: 0.75rem;
-  background: var(--success-light, rgba(34, 139, 34, 0.08));
-  color: var(--success, #228b22);
+  background: var(--safe-light);
+  color: var(--safe);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   text-align: center;

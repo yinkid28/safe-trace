@@ -7,8 +7,8 @@
 
 .layout-content {
   flex: 1;
-  padding: 1rem;
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  padding: var(--space-lg);
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
 }
 
@@ -20,10 +20,12 @@
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 0.5rem 0;
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-nav);
+  padding: 0.6rem 0;
+  padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
   z-index: 100;
 }
 
@@ -31,21 +33,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  color: var(--text-secondary);
+  gap: 0.25rem;
+  color: var(--color-text-tertiary);
   text-decoration: none;
-  font-size: 0.7rem;
-  padding: 0.25rem 0.75rem;
-  transition: color 0.15s;
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0.3rem 1rem;
+  transition: color var(--transition-fast);
+  position: relative;
 }
 
 .nav-item svg {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .nav-item.active {
   color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.nav-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: -0.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-primary);
 }
 
 /* Loading screen */
@@ -58,9 +75,9 @@
 }
 
 .loading-spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid var(--border);
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--color-border-light);
   border-top-color: var(--brand-primary);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;

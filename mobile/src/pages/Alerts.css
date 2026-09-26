@@ -11,9 +11,10 @@
 }
 
 .alerts-title {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: var(--color-primary);
+  letter-spacing: -0.02em;
 }
 
 .alerts-subtitle {
@@ -36,21 +37,21 @@
 
 .alert-tab-btn {
   flex-shrink: 0;
-  padding: 0.4rem 1rem;
-  border-radius: 1.5rem;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  padding: 0.45rem 1.1rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-background);
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .alert-tab-btn.active {
-  background: var(--color-primary);
+  background: var(--color-primary-gradient);
   color: white;
-  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(107, 79, 58, 0.25);
 }
 
 /* List */
@@ -66,9 +67,9 @@
 .empty-alerts-card {
   padding: 3rem 1.5rem;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .empty-alerts-text {
@@ -78,19 +79,23 @@
 
 .alert-feed-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: var(--space-lg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.7rem;
 }
 
 .alert-feed-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-md);
+}
+
+.alert-feed-card:active {
+  transform: scale(0.98);
 }
 
 .alert-card-row {
@@ -102,38 +107,34 @@
 .alert-badge-type {
   font-size: 0.7rem;
   font-weight: 700;
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-pill);
   display: inline-block;
 }
 
 .alert-badge-type.panic {
   background: var(--color-danger-light);
   color: var(--color-danger);
-  border: 1px solid rgba(217, 45, 32, 0.2);
 }
 
 .alert-badge-type.ai_anomaly {
   background: var(--color-warning-light);
   color: var(--color-warning);
-  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .alert-badge-type.offline {
   background: var(--color-background);
   color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
 }
 
 .alert-badge-type.checkin {
   background: var(--color-safe-light);
   color: var(--color-safe);
-  border: 1px solid rgba(46, 125, 50, 0.2);
 }
 
 .alert-card-time {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--color-text-tertiary);
 }
 
 .alert-card-body {
@@ -157,9 +158,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.25rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
+  margin-top: 0.3rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .alert-card-status {
@@ -203,13 +204,14 @@
   width: 100%;
   max-width: 500px;
   background: var(--color-surface);
-  border-radius: var(--radius) var(--radius) 0 0;
-  padding: 1.5rem;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 1.75rem;
   position: relative;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -237,10 +239,11 @@
 }
 
 .modal-title {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: var(--text-primary);
   margin-top: 0.25rem;
+  letter-spacing: -0.02em;
 }
 
 .modal-subtitle {
@@ -260,9 +263,8 @@
 .modal-telemetry-strip {
   display: flex;
   background: var(--color-background);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0.6rem;
+  padding: 0.75rem;
   justify-content: space-around;
 }
 
@@ -273,14 +275,14 @@
 }
 
 .modal-tel-lbl {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .modal-tel-val {
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 800;
   color: var(--text-primary);
   margin-top: 0.15rem;
 }
@@ -293,7 +295,7 @@
   height: 180px;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .modal-route-map {
@@ -309,12 +311,9 @@
 }
 
 .modal-section-title {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  border-left: 3px solid var(--color-primary-light);
-  padding-left: 0.5rem;
+  color: var(--text-primary);
 }
 
 .modal-explanations-list {
@@ -328,9 +327,8 @@
   font-size: 0.85rem;
   color: var(--text-primary);
   background: var(--color-background);
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.85rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
 }
 
 .modal-evidence-gallery {
@@ -344,7 +342,7 @@
   height: 100px;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Timeline vertical track */
@@ -355,7 +353,7 @@
   position: relative;
   padding-left: 1.25rem;
   margin-left: 0.25rem;
-  border-left: 2px solid var(--color-border);
+  border-left: 2px solid var(--color-border-light);
 }
 
 .modal-timeline-node {
@@ -386,7 +384,7 @@
 
 @media (min-width: 768px) {
   .alert-modal-card {
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     align-self: center;
     max-height: 90vh;
   }
