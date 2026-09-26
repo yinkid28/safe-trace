@@ -57,11 +57,11 @@
 /* Map Frame */
 .situational-map-frame {
   flex: 1;
-  border-radius: var(--radius);
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--color-border);
   position: relative;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
 .situational-leaflet-map {
@@ -70,16 +70,23 @@
   z-index: 1;
 }
 
+/* Muted tile layer — Uber-style clean base */
+.situational-leaflet-map .leaflet-tile-pane {
+  filter: saturate(0.25) brightness(1.06) contrast(0.92);
+}
+
 /* Floating overlay stats badge */
 .map-floating-overlay-card {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: white;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--color-border);
   padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.12);
   display: flex;
   flex-direction: column;
   z-index: 10;
@@ -106,8 +113,8 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,31 +129,34 @@
 }
 
 .panic-dot {
-  background: var(--color-danger);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   animation: pulsePanic 1.5s infinite;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 
 .anomaly-dot {
-  background: var(--color-warning);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
 }
 
 .offline-dot {
-  background: var(--color-text-secondary);
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
 }
 
 .checkin-dot {
-  background: var(--color-safe);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
 }
 
 @keyframes pulsePanic {
-  0% { box-shadow: 0 0 0 0 rgba(217, 45, 32, 0.6); }
-  70% { box-shadow: 0 0 0 8px rgba(217, 45, 32, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(217, 45, 32, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 @keyframes mapPulse {
   0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 
@@ -167,10 +177,10 @@
   align-self: flex-start;
 }
 
-.popup-alert-badge.panic { background: var(--color-danger-light); color: var(--color-danger); }
-.popup-alert-badge.ai_anomaly { background: var(--color-warning-light); color: var(--color-warning); }
-.popup-alert-badge.offline { background: var(--color-background); color: var(--color-text-secondary); }
-.popup-alert-badge.checkin { background: var(--color-safe-light); color: var(--color-safe); }
+.popup-alert-badge.panic { background: #fef2f2; color: #dc2626; }
+.popup-alert-badge.ai_anomaly { background: #fffbeb; color: #d97706; }
+.popup-alert-badge.offline { background: #f3f4f6; color: #6b7280; }
+.popup-alert-badge.checkin { background: #f0fdf4; color: #16a34a; }
 
 .popup-user-name {
   font-size: 1rem;
@@ -207,17 +217,20 @@
   padding: 0.4rem 0.6rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #7C3AED;
+  color: #8b5cf6;
   background: transparent;
-  border: 1px solid #7C3AED;
+  border: 1px solid #8b5cf6;
   border-radius: 6px;
   cursor: pointer;
   text-align: center;
+  transition: all 0.15s;
 }
 
 .btn-popup-trail:hover {
-  background: #7C3AED;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
 .trail-active-indicator {
@@ -226,16 +239,16 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  background: #7C3AED;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.85rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
 }
 
 .trail-active-indicator button {
@@ -243,7 +256,12 @@
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 0.2rem 0.6rem;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.75rem;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+.trail-active-indicator button:hover {
+  background: rgba(255, 255, 255, 0.35);
 }

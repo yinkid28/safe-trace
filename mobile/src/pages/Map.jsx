@@ -19,7 +19,9 @@ const userIcon = L.divIcon({
 // Avatar circle with initial letter for family members
 const createMemberIcon = (name, isOnline) => {
   const initial = (name || "?").charAt(0).toUpperCase();
-  const bg = isOnline ? "#2E7D32" : "#BDBDBD";
+  const bg = isOnline
+    ? "linear-gradient(135deg, #22c55e, #16a34a)"
+    : "linear-gradient(135deg, #9ca3af, #6b7280)";
   return L.divIcon({
     className: "custom-marker member-marker",
     html: `<div class="member-marker-avatar" style="background:${bg}">${initial}</div>`,
@@ -292,11 +294,11 @@ export default function FamilyMap() {
                 center={[zone.lat, zone.lng]}
                 radius={200}
                 pathOptions={{
-                  color: "#2E7D32",
-                  fillColor: "#2E7D32",
-                  fillOpacity: 0.1,
-                  weight: 1.5,
-                  opacity: 0.5,
+                  color: "#22c55e",
+                  fillColor: "#22c55e",
+                  fillOpacity: 0.12,
+                  weight: 2,
+                  opacity: 0.6,
                 }}
               >
                 <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />Safe Zone (200m)</Popup>
@@ -312,10 +314,10 @@ export default function FamilyMap() {
                 center={[zone.lat, zone.lng]}
                 radius={200}
                 pathOptions={{
-                  color: "#1565C0",
-                  fillColor: "#1565C0",
+                  color: "#3b82f6",
+                  fillColor: "#3b82f6",
                   fillOpacity: 0.08,
-                  weight: 1.5,
+                  weight: 2,
                   opacity: 0.5,
                   dashArray: "5, 5",
                 }}
@@ -325,14 +327,14 @@ export default function FamilyMap() {
             ) : null
           )}
 
-          {/* Movement history trail (purple dashed) */}
+          {/* Movement history trail (purple) */}
           {trailPoints.length > 1 && (
             <Polyline
               positions={trailPoints}
-              color="#7C3AED"
-              weight={3}
-              opacity={0.7}
-              dashArray="4, 8"
+              color="#8b5cf6"
+              weight={3.5}
+              opacity={0.8}
+              dashArray="6, 8"
             />
           )}
         </MapContainer>

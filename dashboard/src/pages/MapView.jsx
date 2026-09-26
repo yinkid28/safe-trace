@@ -178,7 +178,7 @@ export default function MapView() {
 
           {/* Movement history trail */}
           {trailPoints.length > 1 && (
-            <Polyline positions={trailPoints} color="#7C3AED" weight={3} opacity={0.7} dashArray="4, 8" />
+            <Polyline positions={trailPoints} color="#8b5cf6" weight={3.5} opacity={0.8} dashArray="6, 8" />
           )}
         </MapContainer>
 
