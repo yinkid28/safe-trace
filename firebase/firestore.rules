@@ -137,5 +137,25 @@ service cloud.firestore {
       // No client-side deletes
       allow delete: if false;
     }
+
+    // --- Location History ---
+
+    match /locationHistory/{historyId} {
+      // Owner, family members, and linked agency staff can read
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid
+            || isFamilyMember(resource.data.familyId)
+            || isAgencyStaff(
+                 get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.agencyId
+               ));
+
+      // Only the user themselves can create their own history entries
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      // No updates or deletes from clients
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDocs, orderBy, limit } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useLocation } from "../hooks/useLocation";
@@ -56,6 +56,12 @@ export default function FamilyMap() {
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [queryError, setQueryError] = useState(null);
+  const [familySharedZones, setFamilySharedZones] = useState([]);
+
+  // Trail viewing state
+  const [trailUserId, setTrailUserId] = useState(null);
+  const [trailPoints, setTrailPoints] = useState([]);
+  const [trailLoading, setTrailLoading] = useState(false);
 
   // Subscribe to family data
   useEffect(() => {
@@ -99,6 +105,24 @@ export default function FamilyMap() {
     return () => { unsubMembers(); unsubAlerts(); };
   }, [user?.familyId, user?.uid]);
 
+  // Subscribe to family shared zones
+  useEffect(() => {
+    if (!user?.familyId) {
+      setFamilySharedZones([]);
+      return;
+    }
+    const unsubFamily = onSnapshot(
+      doc(db, "families", user.familyId),
+      (snap) => {
+        if (snap.exists()) {
+          setFamilySharedZones(snap.data().sharedSafeZones || []);
+        }
+      },
+      (err) => console.warn("Family doc listen error:", err.message)
+    );
+    return () => unsubFamily();
+  }, [user?.familyId]);
+
   const currentUserPos = position ? [position.lat, position.lng] : null;
   const defaultCenter = currentUserPos || [6.5095, 3.3810];
 
@@ -125,6 +149,39 @@ export default function FamilyMap() {
       });
     } catch (err) {
       console.error("Failed to dismiss alert:", err);
+    }
+  };
+
+  // Load movement trail for a user (last 24 hours)
+  const loadTrail = async (userId) => {
+    if (trailUserId === userId) {
+      setTrailUserId(null);
+      setTrailPoints([]);
+      return;
+    }
+
+    setTrailLoading(true);
+    setTrailUserId(userId);
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const q = query(
+        collection(db, "locationHistory"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", twentyFourHoursAgo),
+        orderBy("timestamp", "asc"),
+        limit(288)
+      );
+      const snap = await getDocs(q);
+      const points = snap.docs.map((d) => {
+        const data = d.data();
+        return [data.lat, data.lng];
+      });
+      setTrailPoints(points);
+    } catch (err) {
+      console.warn("Failed to load trail:", err.message);
+      setTrailPoints([]);
+    } finally {
+      setTrailLoading(false);
     }
   };
 
@@ -227,7 +284,7 @@ export default function FamilyMap() {
             );
           })}
 
-          {/* Safe zone circles */}
+          {/* Personal safe zone circles (green) */}
           {(user.safeZones || []).map((zone, i) =>
             zone.lat && zone.lng ? (
               <Circle
@@ -245,6 +302,38 @@ export default function FamilyMap() {
                 <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />Safe Zone (200m)</Popup>
               </Circle>
             ) : null
+          )}
+
+          {/* Family shared safe zone circles (blue dashed) */}
+          {familySharedZones.map((zone, i) =>
+            zone.lat && zone.lng ? (
+              <Circle
+                key={`shared-zone-${i}`}
+                center={[zone.lat, zone.lng]}
+                radius={200}
+                pathOptions={{
+                  color: "#1565C0",
+                  fillColor: "#1565C0",
+                  fillOpacity: 0.08,
+                  weight: 1.5,
+                  opacity: 0.5,
+                  dashArray: "5, 5",
+                }}
+              >
+                <Popup><strong>{zone.label}</strong><br />Family Shared Zone (200m)</Popup>
+              </Circle>
+            ) : null
+          )}
+
+          {/* Movement history trail (purple dashed) */}
+          {trailPoints.length > 1 && (
+            <Polyline
+              positions={trailPoints}
+              color="#7C3AED"
+              weight={3}
+              opacity={0.7}
+              dashArray="4, 8"
+            />
           )}
         </MapContainer>
 
@@ -289,11 +378,20 @@ export default function FamilyMap() {
                 </span>
               </div>
             </div>
-            {currentUserPos && (
-              <button className="btn-locate-member" onClick={() => setSelectedCenter(currentUserPos)}>
-                Center
+            <div className="member-actions">
+              {currentUserPos && (
+                <button className="btn-locate-member" onClick={() => setSelectedCenter(currentUserPos)}>
+                  Center
+                </button>
+              )}
+              <button
+                className={`btn-view-trail ${trailUserId === user.uid ? "active" : ""}`}
+                onClick={() => loadTrail(user.uid)}
+                disabled={trailLoading && trailUserId !== user.uid}
+              >
+                {trailUserId === user.uid ? "Hide" : "Trail"}
               </button>
-            )}
+            </div>
           </div>
 
           {/* Family members */}
@@ -314,17 +412,31 @@ export default function FamilyMap() {
                     </span>
                   </div>
                 </div>
-                {pos && (
-                  <button className="btn-locate-member" onClick={() => setSelectedCenter(pos)}>
-                    Locate
+                <div className="member-actions">
+                  {pos && (
+                    <button className="btn-locate-member" onClick={() => setSelectedCenter(pos)}>
+                      Locate
+                    </button>
+                  )}
+                  <button
+                    className={`btn-view-trail ${trailUserId === member.uid ? "active" : ""}`}
+                    onClick={() => loadTrail(member.uid)}
+                    disabled={trailLoading && trailUserId !== member.uid}
+                  >
+                    {trailLoading && trailUserId === member.uid ? "..." :
+                     trailUserId === member.uid ? "Hide" : "Trail"}
                   </button>
-                )}
+                </div>
               </div>
             );
           })}
 
           {familyMembers.length === 0 && (
             <p className="no-members-text">You're the only member. Invite others from Home tab.</p>
+          )}
+
+          {trailUserId && trailPoints.length === 0 && !trailLoading && (
+            <p className="no-trail-text">No movement data in the last 24 hours.</p>
           )}
         </div>
       </section>

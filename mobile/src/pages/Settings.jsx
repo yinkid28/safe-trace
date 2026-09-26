@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
@@ -47,6 +47,18 @@ export default function Settings() {
   const [zoneLng, setZoneLng] = useState("");
   const [modifyingZones, setModifyingZones] = useState(false);
   const [pickerPosition, setPickerPosition] = useState(null);
+  const [shareZone, setShareZone] = useState(false);
+  const [family, setFamily] = useState(null);
+
+  const isHomeLabel = (label) => /\bhome\b/i.test(label);
+
+  // Fetch family data for sharing
+  useEffect(() => {
+    if (!user?.familyId) { setFamily(null); return; }
+    getDoc(doc(db, "families", user.familyId)).then((snap) => {
+      if (snap.exists()) setFamily(snap.data());
+    });
+  }, [user?.familyId]);
 
   // Fetch Linked Agency Details
   useEffect(() => {
@@ -84,11 +96,26 @@ export default function Settings() {
         safeZones: updatedSafeZones,
       });
 
+      // Auto-share "Home" zones or manually shared zones to family
+      if (user.familyId && (isHomeLabel(newZone.label) || shareZone)) {
+        await updateDoc(doc(db, "families", user.familyId), {
+          sharedSafeZones: arrayUnion({
+            label: newZone.label,
+            lat: newZone.lat,
+            lng: newZone.lng,
+            addedBy: user.uid,
+          }),
+        });
+        const snap = await getDoc(doc(db, "families", user.familyId));
+        if (snap.exists()) setFamily(snap.data());
+      }
+
       await refreshProfile();
       setZoneLabel("");
       setZoneLat("");
       setZoneLng("");
       setPickerPosition(null);
+      setShareZone(false);
       alert("Safe Zone added successfully!");
     } catch (err) {
       console.error("Failed to add safe zone:", err);
@@ -102,10 +129,25 @@ export default function Settings() {
     if (!window.confirm("Are you sure you want to remove this Safe Zone?")) return;
     setModifyingZones(true);
     try {
+      const deletedZone = (user.safeZones || [])[index];
       const updatedSafeZones = (user.safeZones || []).filter((_, i) => i !== index);
       await updateDoc(doc(db, "users", user.uid), {
         safeZones: updatedSafeZones,
       });
+
+      // Also remove from family shared zones if it was shared by this user
+      if (user.familyId && family?.sharedSafeZones) {
+        const updatedShared = family.sharedSafeZones.filter(
+          (sz) => !(sz.addedBy === user.uid && sz.lat === deletedZone.lat && sz.lng === deletedZone.lng && sz.label === deletedZone.label)
+        );
+        if (updatedShared.length !== family.sharedSafeZones.length) {
+          await updateDoc(doc(db, "families", user.familyId), {
+            sharedSafeZones: updatedShared,
+          });
+          setFamily((prev) => prev ? { ...prev, sharedSafeZones: updatedShared } : prev);
+        }
+      }
+
       await refreshProfile();
     } catch (err) {
       console.error("Failed to remove safe zone:", err);
@@ -227,6 +269,19 @@ export default function Settings() {
                     />
                   </div>
                 </div>
+                {user.familyId && (
+                  <label className="share-zone-toggle">
+                    <input
+                      type="checkbox"
+                      checked={shareZone || isHomeLabel(zoneLabel)}
+                      onChange={(e) => setShareZone(e.target.checked)}
+                    />
+                    Share with family
+                    {isHomeLabel(zoneLabel) && (
+                      <span className="auto-share-hint">(auto-shared)</span>
+                    )}
+                  </label>
+                )}
                 <button
                   type="submit"
                   className="btn-primary picker-submit-btn"

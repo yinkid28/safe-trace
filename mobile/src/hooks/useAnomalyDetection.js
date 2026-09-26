@@ -14,7 +14,7 @@ const CHECKIN_TIMEOUT_MS = 60_000; // 60 seconds to respond before auto-escalati
  *  - Starts a 60-second countdown
  *  - If user doesn't dismiss, `escalate` becomes true
  */
-export function useAnomalyDetection(user) {
+export function useAnomalyDetection(user, sharedSafeZones = []) {
   const { position } = useLocation();
   const { addPoint, getPoints, clearBuffer, count } = useTrajectoryBuffer();
   const [anomalyAlert, setAnomalyAlert] = useState(null);
@@ -42,7 +42,8 @@ export function useAnomalyDetection(user) {
     lastScoredCount.current = currentCount;
 
     const points = getPoints();
-    const safeZones = (user.safeZones || []).map((z) => ({
+    const allZones = [...(user.safeZones || []), ...sharedSafeZones];
+    const safeZones = allZones.map((z) => ({
       latitude: z.lat,
       longitude: z.lng,
       label: z.label || "",

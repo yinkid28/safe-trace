@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { Geolocation } from "@capacitor/geolocation";
 import { Capacitor } from "@capacitor/core";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, collection, addDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 
@@ -22,6 +22,8 @@ export function LocationProvider({ children }) {
   const intervalRef = useRef(null);
   const bgWatcherIdRef = useRef(null);
   const userRef = useRef(user);
+  const lastHistoryWriteRef = useRef(0);
+  const HISTORY_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
     userRef.current = user;
@@ -30,16 +32,36 @@ export function LocationProvider({ children }) {
   // Shared handler for writing location to Firestore
   const writeLocationToFirestore = useCallback(async (loc) => {
     const currentUser = userRef.current;
-    if (currentUser?.uid) {
-      try {
-        await updateDoc(doc(db, "users", currentUser.uid), {
-          lastLocation: loc,
-          lastSeen: serverTimestamp(),
-          phoneStatus: "online",
-        });
-      } catch (_) {
-        // Firestore write failure — don't break tracking
+    if (!currentUser?.uid) return;
+
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        lastLocation: loc,
+        lastSeen: serverTimestamp(),
+        phoneStatus: "online",
+      });
+
+      // Write to locationHistory every 5 minutes (only for family users)
+      const now = Date.now();
+      if (currentUser.familyId && now - lastHistoryWriteRef.current >= HISTORY_INTERVAL_MS) {
+        lastHistoryWriteRef.current = now;
+        try {
+          await addDoc(collection(db, "locationHistory"), {
+            userId: currentUser.uid,
+            familyId: currentUser.familyId,
+            lat: loc.lat,
+            lng: loc.lng,
+            speed: loc.speed ?? null,
+            heading: loc.heading ?? null,
+            timestamp: serverTimestamp(),
+            clientTimestamp: now,
+          });
+        } catch (_) {
+          // History write failure — don't break tracking
+        }
       }
+    } catch (_) {
+      // Firestore write failure — don't break tracking
     }
   }, []);
 

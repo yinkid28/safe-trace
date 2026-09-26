@@ -32,7 +32,28 @@ The `userId` is the Firebase Auth UID.
 | `members` | array of strings | User IDs (Firebase Auth UIDs) |
 | `adminUserId` | string | UID of the family admin |
 | `agencyId` | string | Linked agency doc ID |
+| `joinCode` | string | Human-readable join code, e.g. `"ADK-4429"` |
+| `sharedSafeZones` | array of maps | `[{ lat, lng, label, addedBy }]` — shared across all family members |
 | `createdAt` | timestamp | |
+
+---
+
+## `locationHistory/{autoId}`
+
+Stores periodic GPS breadcrumbs for passive movement tracking (written every 5 minutes).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `userId` | string | UID of the user this location belongs to |
+| `familyId` | string | Denormalized for query filtering |
+| `lat` | number | Latitude |
+| `lng` | number | Longitude |
+| `speed` | number \| null | Speed in km/h |
+| `heading` | number \| null | Compass heading in degrees |
+| `timestamp` | timestamp | Server timestamp for ordering |
+| `clientTimestamp` | number | Unix ms from client, for dedup |
+
+**Access:** Owner, family members, and linked agency staff can read. Only the user can create.
 
 ---
 

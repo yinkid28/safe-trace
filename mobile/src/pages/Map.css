@@ -223,6 +223,44 @@
   color: white;
 }
 
+/* Member actions container */
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+/* Trail button */
+.btn-view-trail {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #7C3AED;
+  color: #7C3AED;
+  background: transparent;
+  cursor: pointer;
+  min-height: 32px;
+  font-weight: 600;
+}
+
+.btn-view-trail.active {
+  background: #7C3AED;
+  color: white;
+}
+
+.btn-view-trail:disabled {
+  opacity: 0.5;
+}
+
+.no-trail-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0.5rem 0;
+  font-style: italic;
+}
+
 /* ===== No members text ===== */
 .no-members-text {
   font-size: 0.8rem;

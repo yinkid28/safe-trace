@@ -1,4 +1,7 @@
+import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useFamilyMembers } from "../hooks/useFamilyMembers";
 import { useWhereIsChat } from "../hooks/useWhereIsChat";
@@ -8,7 +11,17 @@ import "./Layout.css";
 export default function Layout() {
   const { user } = useAuth();
   const { members } = useFamilyMembers(user?.familyId, user?.uid);
-  const chat = useWhereIsChat(members, user?.safeZones || []);
+  const [familySharedZones, setFamilySharedZones] = useState([]);
+
+  useEffect(() => {
+    if (!user?.familyId) { setFamilySharedZones([]); return; }
+    getDoc(doc(db, "families", user.familyId)).then((snap) => {
+      if (snap.exists()) setFamilySharedZones(snap.data().sharedSafeZones || []);
+    });
+  }, [user?.familyId]);
+
+  const mergedZones = [...(user?.safeZones || []), ...familySharedZones];
+  const chat = useWhereIsChat(members, mergedZones);
 
   return (
     <div className="layout">

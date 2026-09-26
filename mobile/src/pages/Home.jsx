@@ -63,11 +63,11 @@ export default function Home() {
   const { user, refreshProfile } = useAuth();
   const { position } = useLocation();
   const { members } = useFamilyMembers(user?.familyId, user?.uid);
+  const [family, setFamily] = useState(null);
   const {
     anomalyAlert, escalate, countdown: aiCountdown,
     confirmSafe, resetEscalation, enabled: aiEnabled,
-  } = useAnomalyDetection(user);
-  const [family, setFamily] = useState(null);
+  } = useAnomalyDetection(user, family?.sharedSafeZones || []);
   const [showCreateFamily, setShowCreateFamily] = useState(false);
   const [showJoinFamily, setShowJoinFamily] = useState(false);
   const [familyName, setFamilyName] = useState("");
@@ -89,6 +89,7 @@ export default function Home() {
   const [zoneLat, setZoneLat] = useState("");
   const [zoneLng, setZoneLng] = useState("");
   const [modifyingZones, setModifyingZones] = useState(false);
+  const [shareZone, setShareZone] = useState(false);
 
   // Panic SOS & Tracking States
   const [panicCountdown, setPanicCountdown] = useState(null);
@@ -225,6 +226,8 @@ export default function Home() {
   };
 
   // Safe Zones Handling
+  const isHomeLabel = (label) => /\bhome\b/i.test(label);
+
   const handleAddSafeZone = async (e) => {
     e.preventDefault();
     if (!zoneLabel || !zoneLat || !zoneLng) return;
@@ -242,10 +245,26 @@ export default function Home() {
         safeZones: updatedSafeZones,
       });
 
+      // Auto-share "Home" zones or manually shared zones to family
+      if (user.familyId && (isHomeLabel(newZone.label) || shareZone)) {
+        await updateDoc(doc(db, "families", user.familyId), {
+          sharedSafeZones: arrayUnion({
+            label: newZone.label,
+            lat: newZone.lat,
+            lng: newZone.lng,
+            addedBy: user.uid,
+          }),
+        });
+        // Refresh family data
+        const snap = await getDoc(doc(db, "families", user.familyId));
+        if (snap.exists()) setFamily(snap.data());
+      }
+
       await refreshProfile();
       setZoneLabel("");
       setZoneLat("");
       setZoneLng("");
+      setShareZone(false);
       setShowAddZone(false);
     } catch (err) {
       console.error("Failed to add safe zone:", err);
@@ -257,10 +276,25 @@ export default function Home() {
   const handleDeleteSafeZone = async (index) => {
     setModifyingZones(true);
     try {
+      const deletedZone = (user.safeZones || [])[index];
       const updatedSafeZones = (user.safeZones || []).filter((_, i) => i !== index);
       await updateDoc(doc(db, "users", user.uid), {
         safeZones: updatedSafeZones,
       });
+
+      // Also remove from family shared zones if it was shared by this user
+      if (user.familyId && family?.sharedSafeZones) {
+        const updatedShared = family.sharedSafeZones.filter(
+          (sz) => !(sz.addedBy === user.uid && sz.lat === deletedZone.lat && sz.lng === deletedZone.lng && sz.label === deletedZone.label)
+        );
+        if (updatedShared.length !== family.sharedSafeZones.length) {
+          await updateDoc(doc(db, "families", user.familyId), {
+            sharedSafeZones: updatedShared,
+          });
+          setFamily((prev) => prev ? { ...prev, sharedSafeZones: updatedShared } : prev);
+        }
+      }
+
       await refreshProfile();
     } catch (err) {
       console.error("Failed to delete safe zone:", err);
@@ -943,6 +977,19 @@ export default function Home() {
                   required
                 />
               </div>
+              {user.familyId && (
+                <label className="share-zone-toggle">
+                  <input
+                    type="checkbox"
+                    checked={shareZone || isHomeLabel(zoneLabel)}
+                    onChange={(e) => setShareZone(e.target.checked)}
+                  />
+                  Share with family
+                  {isHomeLabel(zoneLabel) && (
+                    <span className="auto-share-hint">(auto-shared)</span>
+                  )}
+                </label>
+              )}
               <div className="form-actions">
                 <button
                   type="button"
@@ -983,6 +1030,29 @@ export default function Home() {
             </ul>
           ) : (
             <p className="card-detail">No safe zones set up yet.</p>
+          )}
+          {family?.sharedSafeZones?.filter((sz) => sz.addedBy !== user.uid).length > 0 && (
+            <div className="shared-zones-section">
+              <h3 className="shared-zones-subtitle">Family Shared Zones</h3>
+              <ul className="safe-zone-list">
+                {family.sharedSafeZones
+                  .filter((sz) => sz.addedBy !== user.uid)
+                  .map((zone, i) => (
+                    <li key={`shared-${i}`} className="safe-zone-item-wrapper">
+                      <div className="safe-zone-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="zone-icon">
+                          <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div>
+                          <span className="zone-name">{zone.label} <span className="zone-shared-badge">Shared</span></span>
+                          <span className="zone-coord">{zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            </div>
           )}
           <Link to="/map" className="btn-secondary manage-map-link">
             Manage on Map

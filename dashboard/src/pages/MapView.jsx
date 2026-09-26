@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, orderBy, limit } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./MapView.css";
@@ -39,6 +39,8 @@ export default function MapView() {
   const { user } = useAuth();
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [trailUserId, setTrailUserId] = useState(null);
+  const [trailPoints, setTrailPoints] = useState([]);
 
   useEffect(() => {
     if (!user?.agencyId) return;
@@ -73,6 +75,33 @@ export default function MapView() {
     if (type === "ai_anomaly") return anomalyIcon;
     if (type === "offline") return offlineIcon;
     return checkinIcon;
+  };
+
+  const loadUserTrail = async (userId) => {
+    if (trailUserId === userId) {
+      setTrailUserId(null);
+      setTrailPoints([]);
+      return;
+    }
+    setTrailUserId(userId);
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const q = query(
+        collection(db, "locationHistory"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", twentyFourHoursAgo),
+        orderBy("timestamp", "asc"),
+        limit(288)
+      );
+      const snap = await getDocs(q);
+      setTrailPoints(snap.docs.map((d) => {
+        const data = d.data();
+        return [data.lat, data.lng];
+      }));
+    } catch (err) {
+      console.error("Failed to load trail:", err);
+      setTrailPoints([]);
+    }
   };
 
   const defaultCenter = [6.5095, 3.3810]; // Lagos Sabo, Yaba center
@@ -135,11 +164,22 @@ export default function MapView() {
                     <Link to={`/alerts/${alert.id}`} className="btn-popup-open-details">
                       Open Incident Details <span style={{display:"inline-block",verticalAlign:"middle",width:"0.85em",height:"0.85em"}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></span>
                     </Link>
+                    <button
+                      className="btn-popup-trail"
+                      onClick={() => loadUserTrail(alert.userId)}
+                    >
+                      {trailUserId === alert.userId ? "Hide Movement History" : "View Movement History"}
+                    </button>
                   </div>
                 </Popup>
               </Marker>
             );
           })}
+
+          {/* Movement history trail */}
+          {trailPoints.length > 1 && (
+            <Polyline positions={trailPoints} color="#7C3AED" weight={3} opacity={0.7} dashArray="4, 8" />
+          )}
         </MapContainer>
 
         {/* Floating count badge overlay */}
@@ -147,6 +187,13 @@ export default function MapView() {
           <span className="overlay-lbl">Command Monitor</span>
           <span className="overlay-val">Showing: {filteredAlerts.length} / {activeAlerts.length} active alerts</span>
         </div>
+
+        {trailUserId && (
+          <div className="trail-active-indicator">
+            Showing 24h movement trail
+            <button onClick={() => { setTrailUserId(null); setTrailPoints([]); }}>Clear</button>
+          </div>
+        )}
       </div>
     </div>
   );
