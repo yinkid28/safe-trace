@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { ZONE_TYPES, getZoneTypeLabel } from "../utils/safeZoneTypes";
 import "./Settings.css";
 
 // Workaround for Leaflet marker icons in Vite
@@ -45,6 +46,7 @@ export default function Settings() {
   const [zoneLabel, setZoneLabel] = useState("");
   const [zoneLat, setZoneLat] = useState("");
   const [zoneLng, setZoneLng] = useState("");
+  const [zoneType, setZoneType] = useState("other");
   const [modifyingZones, setModifyingZones] = useState(false);
   const [pickerPosition, setPickerPosition] = useState(null);
   const [shareZone, setShareZone] = useState(false);
@@ -89,6 +91,7 @@ export default function Settings() {
         label: zoneLabel.trim(),
         lat: parseFloat(zoneLat),
         lng: parseFloat(zoneLng),
+        type: zoneType,
       };
 
       const updatedSafeZones = [...(user.safeZones || []), newZone];
@@ -103,6 +106,7 @@ export default function Settings() {
             label: newZone.label,
             lat: newZone.lat,
             lng: newZone.lng,
+            type: newZone.type,
             addedBy: user.uid,
           }),
         });
@@ -114,6 +118,7 @@ export default function Settings() {
       setZoneLabel("");
       setZoneLat("");
       setZoneLng("");
+      setZoneType("other");
       setPickerPosition(null);
       setShareZone(false);
       alert("Safe Zone added successfully!");
@@ -202,7 +207,7 @@ export default function Settings() {
               <div className="picker-map-wrapper">
                 <MapContainer
                   center={defaultCenter}
-                  zoom={14}
+                  zoom={15}
                   scrollWheelZoom={true}
                   className="picker-leaflet-map"
                 >
@@ -242,6 +247,18 @@ export default function Settings() {
                     className="auth-input"
                     required
                   />
+                </div>
+                <div className="picker-input-group">
+                  <label className="picker-input-lbl">Zone Type</label>
+                  <select
+                    value={zoneType}
+                    onChange={(e) => setZoneType(e.target.value)}
+                    className="auth-input"
+                  >
+                    {ZONE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="picker-coords-inputs-row">
                   <div className="picker-input-group">
@@ -303,6 +320,7 @@ export default function Settings() {
                     <div key={i} className="zone-grid-card">
                       <div className="zone-grid-card-text">
                         <span className="zone-grid-lbl">{zone.label}</span>
+                        <span className="zone-grid-type">{getZoneTypeLabel(zone.type)}</span>
                         <span className="zone-grid-coords">
                           {zone.lat.toFixed(4)}, {zone.lng.toFixed(4)}
                         </span>

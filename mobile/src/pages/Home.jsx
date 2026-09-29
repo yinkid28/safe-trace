@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import { Link } from "react-router";
 import {
   doc,
@@ -16,12 +16,13 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { db, storage } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLocation } from "../hooks/useLocation";
 import { useFamilyMembers } from "../hooks/useFamilyMembers";
 import { useAnomalyDetection } from "../hooks/useAnomalyDetection";
+import { ZONE_TYPES, getZoneIconHtml, getZoneTypeLabel } from "../utils/safeZoneTypes";
 import "./Home.css";
 
 // Pulsing blue dot for current user (matches Map tab style)
@@ -31,6 +32,15 @@ const userIcon = L.divIcon({
   iconSize: [24, 24],
   iconAnchor: [12, 12],
 });
+
+// Safe zone category marker
+const createZoneIcon = (type, isShared = false) =>
+  L.divIcon({
+    className: "custom-marker zone-category-marker",
+    html: getZoneIconHtml(type || "other", isShared),
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
 
 const DEFAULT_AGENCY_ID = "agency_yaba";
 
@@ -88,6 +98,7 @@ export default function Home() {
   const [zoneLabel, setZoneLabel] = useState("");
   const [zoneLat, setZoneLat] = useState("");
   const [zoneLng, setZoneLng] = useState("");
+  const [zoneType, setZoneType] = useState("other");
   const [modifyingZones, setModifyingZones] = useState(false);
   const [shareZone, setShareZone] = useState(false);
 
@@ -238,6 +249,7 @@ export default function Home() {
         label: zoneLabel.trim(),
         lat: parseFloat(zoneLat),
         lng: parseFloat(zoneLng),
+        type: zoneType,
       };
 
       const updatedSafeZones = [...(user.safeZones || []), newZone];
@@ -252,6 +264,7 @@ export default function Home() {
             label: newZone.label,
             lat: newZone.lat,
             lng: newZone.lng,
+            type: newZone.type,
             addedBy: user.uid,
           }),
         });
@@ -264,6 +277,7 @@ export default function Home() {
       setZoneLabel("");
       setZoneLat("");
       setZoneLng("");
+      setZoneType("other");
       setShareZone(false);
       setShowAddZone(false);
     } catch (err) {
@@ -626,6 +640,25 @@ export default function Home() {
             {isAlertActive ? "Distress Alert Broadcasted" : (user.phoneStatus === "online" ? "Online" : "Offline")}
           </div>
         </div>
+        <div className="device-type-badge">
+          {(user.deviceType || "mobile") === "mobile" ? (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="device-icon">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <line x1="12" y1="18" x2="12.01" y2="18" />
+              </svg>
+              <span>Mobile</span>
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="device-icon">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+              </svg>
+              <span>IoT Tracker</span>
+            </>
+          )}
+        </div>
       </header>
 
       {/* PANIC SOS TRIGGER */}
@@ -711,7 +744,7 @@ export default function Home() {
           <div className="map-wrapper">
             <MapContainer
               center={[activePosition.lat, activePosition.lng]}
-              zoom={14}
+              zoom={15}
               scrollWheelZoom={false}
               className="journey-map"
             >
@@ -733,6 +766,40 @@ export default function Home() {
                   Location: {activePosition.label}
                 </Popup>
               </Marker>
+
+              {/* Personal safe zones (green) */}
+              {(user.safeZones || []).map((zone, i) =>
+                zone.lat && zone.lng ? (
+                  <Fragment key={`zone-${i}`}>
+                    <Circle
+                      center={[zone.lat, zone.lng]}
+                      radius={200}
+                      pathOptions={{ color: "#22c55e", fillColor: "#22c55e", fillOpacity: 0.12, weight: 2, opacity: 0.6 }}
+                    />
+                    <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, false)}>
+                      <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (200m)</Popup>
+                    </Marker>
+                  </Fragment>
+                ) : null
+              )}
+
+              {/* Family shared safe zones (blue dashed) */}
+              {(family?.sharedSafeZones || [])
+                .filter((sz) => sz.addedBy !== user.uid)
+                .map((zone, i) =>
+                  zone.lat && zone.lng ? (
+                    <Fragment key={`shared-zone-${i}`}>
+                      <Circle
+                        center={[zone.lat, zone.lng]}
+                        radius={200}
+                        pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.08, weight: 2, opacity: 0.5, dashArray: "5, 5" }}
+                      />
+                      <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, true)}>
+                        <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (200m)</Popup>
+                      </Marker>
+                    </Fragment>
+                  ) : null
+                )}
             </MapContainer>
           </div>
         </section>
@@ -957,6 +1024,15 @@ export default function Home() {
                 className="auth-input"
                 required
               />
+              <select
+                value={zoneType}
+                onChange={(e) => setZoneType(e.target.value)}
+                className="auth-input"
+              >
+                {ZONE_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
               <div className="coordinate-inputs">
                 <input
                   type="number"
@@ -1015,7 +1091,7 @@ export default function Home() {
                     </svg>
                     <div>
                       <span className="zone-name">{zone.label || `Zone ${i + 1}`}</span>
-                      <span className="zone-coord">{zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
+                      <span className="zone-coord">{getZoneTypeLabel(zone.type)} &middot; {zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
                     </div>
                   </div>
                   <button
@@ -1046,7 +1122,7 @@ export default function Home() {
                         </svg>
                         <div>
                           <span className="zone-name">{zone.label} <span className="zone-shared-badge">Shared</span></span>
-                          <span className="zone-coord">{zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
+                          <span className="zone-coord">{getZoneTypeLabel(zone.type)} &middot; {zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
                         </div>
                       </div>
                     </li>

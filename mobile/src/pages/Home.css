@@ -747,3 +747,47 @@
   width: 100%;
   text-align: center;
 }
+
+/* Device type badge */
+.device-type-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.device-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* Safe zone category markers on map */
+.zone-category-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.zone-marker-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.zone-marker-icon svg {
+  width: 14px;
+  height: 14px;
+}

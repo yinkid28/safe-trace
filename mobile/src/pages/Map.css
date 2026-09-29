@@ -508,3 +508,26 @@
 .danger-text {
   color: var(--color-danger);
 }
+
+/* ===== Zone category marker icons ===== */
+.zone-category-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.zone-marker-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.zone-marker-icon svg {
+  width: 14px;
+  height: 14px;
+}

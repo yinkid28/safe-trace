@@ -185,6 +185,12 @@
   color: var(--text-primary);
 }
 
+.zone-grid-type {
+  font-size: 0.7rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .zone-grid-coords {
   font-size: 0.75rem;
   color: var(--text-secondary);

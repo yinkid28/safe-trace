@@ -86,6 +86,7 @@ export function AuthProvider({ children }) {
           lastSeen: null,
           phoneStatus: "online",
           safeZones: [],
+          deviceType: "mobile",
           createdAt: serverTimestamp(),
         });
 

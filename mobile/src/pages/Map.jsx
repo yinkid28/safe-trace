@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDocs, orderBy, limit } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
@@ -6,6 +6,7 @@ import { useLocation } from "../hooks/useLocation";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getZoneIconHtml, getZoneTypeLabel } from "../utils/safeZoneTypes";
 import "./Map.css";
 
 // Pulsing blue dot for current user
@@ -37,6 +38,15 @@ const alertIcon = L.divIcon({
   iconSize: [26, 26],
   iconAnchor: [13, 13],
 });
+
+// Safe zone category marker
+const createZoneIcon = (type, isShared = false) =>
+  L.divIcon({
+    className: "custom-marker zone-category-marker",
+    html: getZoneIconHtml(type || "other", isShared),
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
 
 // Programmatically pan/zoom map
 function RecenterMap({ center }) {
@@ -192,7 +202,7 @@ export default function FamilyMap() {
     return (
       <div className="map-page-container">
         <div className="leaflet-map-wrapper">
-          <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={true} className="family-route-map">
+          <MapContainer center={defaultCenter} zoom={15} scrollWheelZoom={true} className="family-route-map">
             <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
             {currentUserPos && (
               <Marker position={currentUserPos} icon={userIcon}>
@@ -229,7 +239,7 @@ export default function FamilyMap() {
 
       {/* Map with floating button */}
       <div className="leaflet-map-wrapper">
-        <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={true} className="family-route-map">
+        <MapContainer center={defaultCenter} zoom={15} scrollWheelZoom={true} className="family-route-map">
           <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
           {selectedCenter && <RecenterMap center={selectedCenter} />}
 
@@ -286,44 +296,35 @@ export default function FamilyMap() {
             );
           })}
 
-          {/* Personal safe zone circles (green) */}
+          {/* Personal safe zone circles + icons (green) */}
           {(user.safeZones || []).map((zone, i) =>
             zone.lat && zone.lng ? (
-              <Circle
-                key={`zone-${i}`}
-                center={[zone.lat, zone.lng]}
-                radius={200}
-                pathOptions={{
-                  color: "#22c55e",
-                  fillColor: "#22c55e",
-                  fillOpacity: 0.12,
-                  weight: 2,
-                  opacity: 0.6,
-                }}
-              >
-                <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />Safe Zone (200m)</Popup>
-              </Circle>
+              <Fragment key={`zone-${i}`}>
+                <Circle
+                  center={[zone.lat, zone.lng]}
+                  radius={200}
+                  pathOptions={{ color: "#22c55e", fillColor: "#22c55e", fillOpacity: 0.12, weight: 2, opacity: 0.6 }}
+                />
+                <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, false)}>
+                  <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (200m)</Popup>
+                </Marker>
+              </Fragment>
             ) : null
           )}
 
-          {/* Family shared safe zone circles (blue dashed) */}
+          {/* Family shared safe zone circles + icons (blue dashed) */}
           {familySharedZones.map((zone, i) =>
             zone.lat && zone.lng ? (
-              <Circle
-                key={`shared-zone-${i}`}
-                center={[zone.lat, zone.lng]}
-                radius={200}
-                pathOptions={{
-                  color: "#3b82f6",
-                  fillColor: "#3b82f6",
-                  fillOpacity: 0.08,
-                  weight: 2,
-                  opacity: 0.5,
-                  dashArray: "5, 5",
-                }}
-              >
-                <Popup><strong>{zone.label}</strong><br />Family Shared Zone (200m)</Popup>
-              </Circle>
+              <Fragment key={`shared-zone-${i}`}>
+                <Circle
+                  center={[zone.lat, zone.lng]}
+                  radius={200}
+                  pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.08, weight: 2, opacity: 0.5, dashArray: "5, 5" }}
+                />
+                <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, true)}>
+                  <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (200m)</Popup>
+                </Marker>
+              </Fragment>
             ) : null
           )}
 
