@@ -122,9 +122,12 @@ service cloud.firestore {
             || isFamilyMember(resource.data.familyId)
             || isAgencyStaff(resource.data.agencyId));
 
-      // Users can create alerts for themselves with valid type and status
+      // Users can create alerts for themselves, or family members can
+      // create alerts for other members (e.g. offline detection).
       allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
+        && (request.resource.data.userId == request.auth.uid
+            || (request.resource.data.familyId != null
+                && isFamilyMember(request.resource.data.familyId)))
         && request.resource.data.type in ["panic", "ai_anomaly", "offline", "checkin"]
         && request.resource.data.status == "new";
 
@@ -136,6 +139,31 @@ service cloud.firestore {
 
       // No client-side deletes
       allow delete: if false;
+    }
+
+    // --- Devices (Hardware Trackers) ---
+
+    match /devices/{deviceId} {
+      // Owner and family members can read device status
+      allow read: if isSignedIn()
+        && (resource.data.pairedUserId == request.auth.uid
+            || (resource.data.familyId != null
+                && isFamilyMember(resource.data.familyId)));
+
+      // Only the paired user can create a device doc
+      allow create: if isSignedIn()
+        && request.resource.data.pairedUserId == request.auth.uid
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // Only the paired user can update (e.g. change label).
+      // Cannot change pairedUserId (prevents hijacking).
+      allow update: if isSignedIn()
+        && resource.data.pairedUserId == request.auth.uid
+        && request.resource.data.pairedUserId == resource.data.pairedUserId;
+
+      // Only the paired user can delete (unpair)
+      allow delete: if isSignedIn()
+        && resource.data.pairedUserId == request.auth.uid;
     }
 
     // --- Location History ---

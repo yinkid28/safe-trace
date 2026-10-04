@@ -113,6 +113,11 @@
   z-index: 1;
 }
 
+/* Muted tile layer — matches Map and Home map style */
+.picker-leaflet-map .leaflet-tile-pane {
+  filter: saturate(0.25) brightness(1.06) contrast(0.92);
+}
+
 .picker-coords-form {
   display: flex;
   flex-direction: column;
@@ -191,6 +196,49 @@
   font-weight: 600;
 }
 
+/* Zone type selector grid */
+.zone-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.zone-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.zone-type-chip:active {
+  transform: scale(0.95);
+}
+
+.zone-type-chip--active {
+  background: var(--color-primary-gradient);
+  color: white;
+  box-shadow: 0 2px 8px rgba(107, 79, 58, 0.25);
+}
+
+.zone-type-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zone-type-chip-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .zone-grid-coords {
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -208,6 +256,38 @@
 
 .btn-delete-zone-grid:hover {
   text-decoration: underline;
+}
+
+/* Device credentials display (hardware tracker pairing) */
+.device-credentials-card {
+  background: var(--color-safe-light, #f0fdf4);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.credential-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  margin-top: 0.4rem;
+}
+
+.credential-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.credential-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: "Courier New", monospace;
+  color: var(--text-primary);
+  word-break: break-all;
 }
 
 /* Agency section styling */

@@ -52,6 +52,8 @@ export default function FamilyAlerts() {
     if (filter === "all") return true;
     if (filter === "panic") return alert.type === "panic";
     if (filter === "ai_anomaly") return alert.type === "ai_anomaly";
+    if (filter === "checkin") return alert.type === "checkin";
+    if (filter === "offline") return alert.type === "offline";
     if (filter === "resolved") return alert.status === "resolved";
     return true;
   });
@@ -77,15 +79,21 @@ export default function FamilyAlerts() {
 
       {/* FILTER TABS */}
       <div className="alerts-tabs">
-        {["all", "panic", "ai_anomaly", "resolved"].map((tab) => (
-          <button
-            key={tab}
-            className={`alert-tab-btn ${filter === tab ? "active" : ""}`}
-            onClick={() => setFilter(tab)}
-          >
-            {tab === "ai_anomaly" ? "AI Anomalies" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
+        {["all", "panic", "ai_anomaly", "checkin", "offline", "resolved"].map((tab) => {
+          const labels = {
+            all: "All", panic: "Panic", ai_anomaly: "AI Anomalies",
+            checkin: "Check-in", offline: "Offline", resolved: "Resolved",
+          };
+          return (
+            <button
+              key={tab}
+              className={`alert-tab-btn ${filter === tab ? "active" : ""}`}
+              onClick={() => setFilter(tab)}
+            >
+              {labels[tab]}
+            </button>
+          );
+        })}
       </div>
 
       {/* ALERT FEED */}
@@ -96,10 +104,11 @@ export default function FamilyAlerts() {
       ) : (
         <div className="alerts-feed-list">
           {filteredAlerts.map((alert) => {
-            const isResolved = alert.status === "resolved";
-            const isPanic = alert.type === "panic";
-            const isAnomaly = alert.type === "ai_anomaly";
-            
+            const typeLabels = {
+              panic: "PANIC", ai_anomaly: "AI ANOMALY",
+              checkin: "CHECK-IN", offline: "OFFLINE",
+            };
+
             return (
               <div
                 key={alert.id}
@@ -108,7 +117,7 @@ export default function FamilyAlerts() {
               >
                 <div className="alert-card-row">
                   <span className={`alert-badge-type ${alert.type}`}>
-                    {alert.type.toUpperCase()}
+                    {typeLabels[alert.type] || alert.type.toUpperCase()}
                   </span>
                   <span className="alert-card-time">
                     {formatDate(alert.createdAt)} &middot; {formatTime(alert.createdAt)}
@@ -142,7 +151,7 @@ export default function FamilyAlerts() {
             
             <div className="modal-header">
               <span className={`alert-badge-type ${selectedAlert.type}`}>
-                {selectedAlert.type.toUpperCase()}
+                {{ panic: "PANIC", ai_anomaly: "AI ANOMALY", checkin: "CHECK-IN", offline: "OFFLINE" }[selectedAlert.type] || selectedAlert.type.toUpperCase()}
               </span>
               <h2 className="modal-title">{selectedAlert.userName}</h2>
               <p className="modal-subtitle">
@@ -201,7 +210,9 @@ export default function FamilyAlerts() {
               {/* Explanations section */}
               {selectedAlert.explanations?.length > 0 && (
                 <div className="modal-section">
-                  <h3 className="modal-section-title">AI System Findings</h3>
+                  <h3 className="modal-section-title">
+                    {selectedAlert.type === "ai_anomaly" ? "AI System Findings" : "Details"}
+                  </h3>
                   <ul className="modal-explanations-list">
                     {selectedAlert.explanations.map((exp, i) => (
                       <li key={i} className="modal-explanation-item">{exp}</li>

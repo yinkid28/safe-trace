@@ -791,3 +791,203 @@
   width: 14px;
   height: 14px;
 }
+
+/* Zone type icon in safe zone list */
+.zone-type-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.zone-type-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.zone-type-icon--personal {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+}
+
+.zone-type-icon--shared {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* Zone type selector grid */
+.zone-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.zone-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.zone-type-chip:active {
+  transform: scale(0.95);
+}
+
+.zone-type-chip--active {
+  background: var(--color-primary-gradient);
+  color: white;
+  box-shadow: 0 2px 8px rgba(107, 79, 58, 0.25);
+}
+
+.zone-type-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zone-type-chip-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* ===== Safety Check-In Scheduler ===== */
+
+.checkin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Active state — subtle purple tint */
+.checkin-active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04), rgba(59, 130, 246, 0.04));
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15), var(--shadow-sm);
+}
+
+.checkin-active-title {
+  color: #7c3aed;
+}
+
+/* Grace period — warning amber */
+.checkin-grace {
+  background: #fffbf0;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25), var(--shadow-sm);
+}
+
+.checkin-grace-title {
+  color: var(--color-warning);
+}
+
+/* Duration pill buttons */
+.checkin-duration-options {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.checkin-duration-btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.checkin-duration-btn:active {
+  transform: scale(0.95);
+}
+
+.checkin-duration-btn.selected {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Optional note input */
+.checkin-note-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--color-surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.checkin-note-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+/* Start button */
+.checkin-start-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.checkin-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkin-start-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Countdown display */
+.checkin-countdown {
+  font-size: 2.2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: #7c3aed;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0;
+}
+
+/* Label text */
+.checkin-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Action button row */
+.checkin-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.checkin-safe-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.checkin-safe-btn:active {
+  transform: scale(0.97);
+}
+
+.checkin-cancel-btn {
+  flex: 0 0 auto;
+  padding: 0.55rem 1rem;
+}

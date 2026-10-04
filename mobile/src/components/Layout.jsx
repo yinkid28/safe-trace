@@ -4,6 +4,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useFamilyMembers } from "../hooks/useFamilyMembers";
+import { useOfflineDetection } from "../hooks/useOfflineDetection";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useWhereIsChat } from "../hooks/useWhereIsChat";
 import ChatOverlay from "./ChatOverlay";
 import "./Layout.css";
@@ -12,6 +14,8 @@ export default function Layout() {
   const { user } = useAuth();
   const { members } = useFamilyMembers(user?.familyId, user?.uid);
   const [familySharedZones, setFamilySharedZones] = useState([]);
+  useOfflineDetection(members, user);
+  usePushNotifications(user);
 
   useEffect(() => {
     if (!user?.familyId) { setFamilySharedZones([]); return; }

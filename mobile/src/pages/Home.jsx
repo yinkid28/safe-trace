@@ -22,7 +22,9 @@ import "leaflet/dist/leaflet.css";
 import { useLocation } from "../hooks/useLocation";
 import { useFamilyMembers } from "../hooks/useFamilyMembers";
 import { useAnomalyDetection } from "../hooks/useAnomalyDetection";
-import { ZONE_TYPES, getZoneIconHtml, getZoneTypeLabel } from "../utils/safeZoneTypes";
+import { useCheckIn } from "../hooks/useCheckIn";
+import { ZONE_TYPES, getZoneIconHtml, getZoneTypeLabel, getZoneIconSvgHtml } from "../utils/safeZoneTypes";
+import { sendNotification } from "../utils/notify";
 import "./Home.css";
 
 // Pulsing blue dot for current user (matches Map tab style)
@@ -78,6 +80,12 @@ export default function Home() {
     anomalyAlert, escalate, countdown: aiCountdown,
     confirmSafe, resetEscalation, enabled: aiEnabled,
   } = useAnomalyDetection(user, family?.sharedSafeZones || []);
+  const {
+    checkIn, graceActive, graceCountdown, remaining,
+    setCheckIn: startCheckIn, cancelCheckIn, confirmSafe: confirmCheckInSafe,
+  } = useCheckIn(user);
+  const [checkInDuration, setCheckInDuration] = useState(null);
+  const [checkInNote, setCheckInNote] = useState("");
   const [showCreateFamily, setShowCreateFamily] = useState(false);
   const [showJoinFamily, setShowJoinFamily] = useState(false);
   const [familyName, setFamilyName] = useState("");
@@ -173,6 +181,14 @@ export default function Home() {
       ],
       notes: [],
     }).then(() => {
+      sendNotification({
+        alertId: alertRef.id,
+        alertType: "ai_anomaly",
+        userName: user.name,
+        familyId: user.familyId || "no_family",
+        agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
+        locationName: `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`,
+      });
       resetEscalation();
     }).catch((err) => {
       console.error("AI alert creation failed:", err);
@@ -398,6 +414,15 @@ export default function Home() {
       };
 
       await setDoc(alertRef, alertData);
+
+      sendNotification({
+        alertId,
+        alertType: "panic",
+        userName: user.name,
+        familyId: alertData.familyId,
+        agencyId: alertData.agencyId,
+        locationName: alertData.locationName,
+      });
 
       // Upload evidence photo to Cloud Storage if captured
       if (photoBase64) {
@@ -641,13 +666,13 @@ export default function Home() {
           </div>
         </div>
         <div className="device-type-badge">
-          {(user.deviceType || "mobile") === "mobile" ? (
+          {(user.lastLocationSource || "phone") === "phone" ? (
             <>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="device-icon">
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
                 <line x1="12" y1="18" x2="12.01" y2="18" />
               </svg>
-              <span>Mobile</span>
+              <span>Phone</span>
             </>
           ) : (
             <>
@@ -655,7 +680,7 @@ export default function Home() {
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
               </svg>
-              <span>IoT Tracker</span>
+              <span>Tracker</span>
             </>
           )}
         </div>
@@ -690,6 +715,92 @@ export default function Home() {
             </button>
           )}
         </div>
+      )}
+
+      {/* SAFETY CHECK-IN SCHEDULER */}
+      {user.role !== "agency_staff" && (
+        graceActive ? (
+          /* Grace period — "Are you safe?" */
+          <section className="home-card checkin-section checkin-grace">
+            <h2 className="card-title checkin-grace-title">Are you safe?</h2>
+            <p className="card-detail">
+              Your check-in timer expired. If you don't respond, an alert
+              will be sent to your family and agency in <strong>{graceCountdown}s</strong>.
+            </p>
+            <button className="btn-primary checkin-safe-btn" onClick={confirmCheckInSafe}>
+              I'm Safe
+            </button>
+          </section>
+        ) : checkIn ? (
+          /* Active check-in — countdown */
+          <section className="home-card checkin-section checkin-active">
+            <h2 className="card-title checkin-active-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "1em", height: "1em", verticalAlign: "middle", marginRight: "0.35em" }}>
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+              Check-In Active
+            </h2>
+            {checkIn.label && <p className="checkin-label">"{checkIn.label}"</p>}
+            <div className="checkin-countdown">
+              {String(remaining?.hours ?? 0).padStart(2, "0")}
+              :{String(remaining?.minutes ?? 0).padStart(2, "0")}
+              :{String(remaining?.seconds ?? 0).padStart(2, "0")}
+            </div>
+            <div className="checkin-actions">
+              <button className="btn-primary checkin-safe-btn" onClick={confirmCheckInSafe}>
+                I'm Safe
+              </button>
+              <button className="btn-secondary checkin-cancel-btn" onClick={cancelCheckIn}>
+                Cancel
+              </button>
+            </div>
+          </section>
+        ) : (
+          /* Set check-in */
+          <section className="home-card checkin-section">
+            <h2 className="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "1em", height: "1em", verticalAlign: "middle", marginRight: "0.35em" }}>
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+              Safety Check-In
+            </h2>
+            <p className="card-detail">Set a timer. If you don't check in when it expires, your family and agency will be alerted.</p>
+            <div className="checkin-duration-options">
+              {[
+                { label: "30 min", ms: 30 * 60 * 1000 },
+                { label: "1 hr", ms: 60 * 60 * 1000 },
+                { label: "2 hr", ms: 2 * 60 * 60 * 1000 },
+                { label: "4 hr", ms: 4 * 60 * 60 * 1000 },
+              ].map((opt) => (
+                <button
+                  key={opt.ms}
+                  className={`checkin-duration-btn${checkInDuration === opt.ms ? " selected" : ""}`}
+                  onClick={() => setCheckInDuration(opt.ms)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              className="checkin-note-input"
+              placeholder="Note (optional) — e.g. &quot;Going to market&quot;"
+              value={checkInNote}
+              onChange={(e) => setCheckInNote(e.target.value)}
+            />
+            <button
+              className="btn-primary checkin-start-btn"
+              disabled={!checkInDuration}
+              onClick={() => {
+                startCheckIn(checkInDuration, checkInNote);
+                setCheckInDuration(null);
+                setCheckInNote("");
+              }}
+            >
+              Start Check-In
+            </button>
+          </section>
+        )
       )}
 
       {/* AI ANOMALY CHECK-IN PROMPT */}
@@ -1024,15 +1135,19 @@ export default function Home() {
                 className="auth-input"
                 required
               />
-              <select
-                value={zoneType}
-                onChange={(e) => setZoneType(e.target.value)}
-                className="auth-input"
-              >
+              <div className="zone-type-grid">
                 {ZONE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                  <button
+                    key={t.value}
+                    type="button"
+                    className={`zone-type-chip${zoneType === t.value ? " zone-type-chip--active" : ""}`}
+                    onClick={() => setZoneType(t.value)}
+                  >
+                    <span className="zone-type-chip-icon" dangerouslySetInnerHTML={{ __html: getZoneIconSvgHtml(t.value) }} />
+                    <span>{t.label}</span>
+                  </button>
                 ))}
-              </select>
+              </div>
               <div className="coordinate-inputs">
                 <input
                   type="number"
@@ -1085,10 +1200,7 @@ export default function Home() {
               {user.safeZones.map((zone, i) => (
                 <li key={i} className="safe-zone-item-wrapper">
                   <div className="safe-zone-item">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="zone-icon">
-                      <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <span className="zone-type-icon zone-type-icon--personal" dangerouslySetInnerHTML={{ __html: getZoneIconSvgHtml(zone.type) }} />
                     <div>
                       <span className="zone-name">{zone.label || `Zone ${i + 1}`}</span>
                       <span className="zone-coord">{getZoneTypeLabel(zone.type)} &middot; {zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>
@@ -1116,10 +1228,7 @@ export default function Home() {
                   .map((zone, i) => (
                     <li key={`shared-${i}`} className="safe-zone-item-wrapper">
                       <div className="safe-zone-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="zone-icon">
-                          <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        <span className="zone-type-icon zone-type-icon--shared" dangerouslySetInnerHTML={{ __html: getZoneIconSvgHtml(zone.type) }} />
                         <div>
                           <span className="zone-name">{zone.label} <span className="zone-shared-badge">Shared</span></span>
                           <span className="zone-coord">{getZoneTypeLabel(zone.type)} &middot; {zone.lat?.toFixed(4)}, {zone.lng?.toFixed(4)}</span>

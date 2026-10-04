@@ -11,8 +11,8 @@ A personal safety system for the Nigerian context that detects when something ha
 
 It has **three software parts plus an optional hardware tracker**, all integrated through a single cloud backend (Firebase):
 
-1. **Android app** (Flutter) — used by the protected person and their family members. Registration, family groups, panic button, live location, evidence capture.
-2. **Python AI service** (FastAPI + scikit-learn) — learns a user's normal movement pattern and flags anomalies as a risk score. **This is our own model — no LLM, no external AI API.**
+1. **Android app** (React + Capacitor) — used by the protected person and their family members. Registration, family groups, panic button, live location, evidence capture.
+2. **Python AI service** (FastAPI + scikit-learn) — learns a user's normal movement pattern and flags anomalies as a risk score. **The anomaly detection model is our own work (scikit-learn Isolation Forest).** The "Where is X?" chat assistant uses an LLM (Groq API) to provide natural-language responses grounded in real-time location data from the database.
 3. **Web dashboard + landing page** (React) — landing page is the public front door with two paths (individual or agency); dashboard is used by the security agency to monitor live alerts, location, and captured evidence.
 4. **Hardware tracker** (optional tier, DIY) — a self-built ESP32 + GPS + GSM device that writes location to the same Firebase, as an alternative tracking source for people who may not always carry a phone. See section 13.
 
@@ -22,7 +22,7 @@ It has **three software parts plus an optional hardware tracker**, all integrate
 
 - **A switched-off phone sends nothing.** We do NOT claim to track or record a dead phone. Instead, the moment a phone goes offline / battery is pulled / signal drops, that is itself a *trigger event*, and we preserve the **last known location, time, speed and direction**.
 - **Evidence must leave the phone before the phone dies.** On any trigger, the app captures a photo + location burst and **uploads to the cloud immediately**, THEN raises the alarm. The evidence survives even if the phone is destroyed one second later. This is the project's standout feature.
-- **The AI is our own work.** Anomaly detection is built with Python/scikit-learn (Isolation Forest). We must be able to explain and defend every part of it. No LLM is used in the defence version.
+- **The AI is our own work.** Anomaly detection is built with Python/scikit-learn (Isolation Forest). We must be able to explain and defend every part of it. The "Where is X?" chat uses an LLM (Groq API with Llama 3.3) for natural-language responses, but it is grounded in real location data from our database — it does not hallucinate locations or fabricate status.
 - **Built for a low-response environment.** The value is not "tracking" (telcos already do that) — it is detecting trouble automatically, preserving proof, and delivering an actionable alert to a responder.
 - **Cost-conscious.** Everything runs on free tiers (Firebase Spark, Render free, Google Maps free tier). No paid services required.
 
@@ -102,12 +102,12 @@ The Android app and web dashboard share the same Firebase project (same `.env` c
 
 ## 6. The "Where is X?" assistant
 
-A family member can ask "Where is Tola now?" and get an accurate status reply.
+A family member can ask "Where is Tola now?" and get an accurate, conversational status reply.
 
-- **Defence version: rule-based (no LLM).** Our own Python/Dart code reads the database and formats a reply, e.g.:
-  *"Tola: last seen 14 min ago near Yaba, moving ~60 km/h toward an unmonitored area, phone now offline. This is unusual for this time."*
+- **Implementation:** The assistant uses an LLM (Groq API with Llama 3.3) to generate natural-language responses. The LLM is grounded — it receives the family member's real-time location data from Firestore as context and responds based on that data. It does not hallucinate locations or fabricate status.
+- Example response: *"Tola was last seen 14 min ago near Yaba, moving ~60 km/h toward an unmonitored area. Her phone is now offline. This is unusual for this time of day."*
 - It reports current location if the phone is on, or last-known location + time of contact loss if off. It never claims data from a dead phone.
-- **Future work:** a natural-language conversational version using an LLM. NOT built for defence.
+- **Key distinction:** The anomaly detection AI (Isolation Forest) is our own trained model. The chat assistant uses a third-party LLM as a presentation layer — it makes the data readable, but the intelligence (what's normal, what's abnormal) comes from our model.
 
 ---
 
@@ -128,7 +128,7 @@ A family member can ask "Where is Tola now?" and get an accurate status reply.
 Supabase was considered. Firebase was chosen because:
 1. **Real-time location updates** are Firebase's strongest use case; the dashboard, family, and alerts all depend on live data pushing to all clients.
 2. **Cloud Messaging (push notifications) is built in and free.** Alerts depend on it. With Supabase we'd bolt on a separate service.
-3. **Flutter + Firebase is the most documented pairing** on the internet (both are Google products). This matters on a 3-month timeline.
+3. **React + Firebase is a widely documented pairing** with strong community support. This matters on a 3-month timeline.
 
 Supabase would be the better choice for a heavily relational SQL app or one needing self-hosting. Neither applies here. Record this in `DECISIONS.md` for the defence.
 
@@ -159,8 +159,8 @@ safetrace/
 │   ├── tests/
 │   ├── requirements.txt
 │   └── README.md
-├── mobile/                    # Flutter Android app
-│   └── (flutter project)
+├── mobile/                    # React (Vite) + Capacitor Android app
+│   └── (vite react project)
 ├── dashboard/                 # React web dashboard + landing page
 │   └── (vite react project)
 └── hardware/                  # ESP32 firmware + wiring notes  (optional tier)
@@ -180,7 +180,7 @@ safetrace/
 
 **Phase 2 — Firebase + data model:** auth, Firestore collections (users, families, agencies, alerts, locations, evidence), storage rules.
 
-**Phase 3 — Android app:** registration with in-app fork (family / direct-agency), live GPS, panic button, evidence capture → instant upload → then alert, last-known + offline detection, rule-based "Where is X?".
+**Phase 3 — Android app:** registration with in-app fork (family / direct-agency), live GPS, panic button, evidence capture → instant upload → then alert, last-known + offline detection, LLM-powered "Where is X?" chat.
 
 **Phase 4 — Web dashboard + landing page:** landing page (two doors), agency signup + verification flow, agency dashboard with live alert list, map view, evidence view, alert status.
 
@@ -190,7 +190,7 @@ safetrace/
 
 **Parallel — Hardware tracker** (see section 13): owned by one team member, runs alongside phases 1–5, drop-dead cutoff 3 weeks before defence.
 
-Out of scope for defence (state as **future work**): LLM conversational bot, audio recording, sensor auto-trigger, real agency/police integration, iOS, per-member backup agency in a family.
+Out of scope for defence (state as **future work**): audio recording, sensor auto-trigger, real agency/police integration, iOS, per-member backup agency in a family.
 
 ---
 

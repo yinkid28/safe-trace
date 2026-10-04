@@ -39,6 +39,7 @@ export function LocationProvider({ children }) {
         lastLocation: loc,
         lastSeen: serverTimestamp(),
         phoneStatus: "online",
+        lastLocationSource: "phone",
       });
 
       // Write to locationHistory every 5 minutes (only for family users)
@@ -55,6 +56,7 @@ export function LocationProvider({ children }) {
             heading: loc.heading ?? null,
             timestamp: serverTimestamp(),
             clientTimestamp: now,
+            source: "phone",
           });
         } catch (_) {
           // History write failure — don't break tracking
@@ -175,6 +177,18 @@ export function LocationProvider({ children }) {
     }
   }, [stopNativeTracking, stopBrowserTracking]);
 
+  // Write phoneStatus: "offline" as a best-effort last act when the
+  // phone loses network or the app is being terminated.
+  const markOffline = useCallback(() => {
+    const currentUser = userRef.current;
+    if (!currentUser?.uid) return;
+    updateDoc(doc(db, "users", currentUser.uid), {
+      phoneStatus: "offline",
+    }).catch(() => {
+      // Best-effort — may fail if already offline
+    });
+  }, []);
+
   // Auto-start when user is authenticated
   useEffect(() => {
     if (!user) {
@@ -185,6 +199,17 @@ export function LocationProvider({ children }) {
     }
 
     let cancelled = false;
+
+    // --- Offline detection listeners ---
+    const handleOffline = () => markOffline();
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") markOffline();
+    };
+    const handlePageHide = () => markOffline();
+
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", handlePageHide);
 
     async function initLocation() {
       try {
@@ -225,6 +250,9 @@ export function LocationProvider({ children }) {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handlePageHide);
       stopTracking();
     };
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps

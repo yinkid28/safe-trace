@@ -18,14 +18,33 @@ const userIcon = L.divIcon({
 });
 
 // Avatar circle with initial letter for family members
-const createMemberIcon = (name, isOnline) => {
+const createMemberIcon = (name, isOnline, isStale = false) => {
   const initial = (name || "?").charAt(0).toUpperCase();
-  const bg = isOnline
-    ? "linear-gradient(135deg, #22c55e, #16a34a)"
-    : "linear-gradient(135deg, #9ca3af, #6b7280)";
+  const bg = isStale
+    ? "linear-gradient(135deg, #f59e0b, #d97706)"
+    : isOnline
+      ? "linear-gradient(135deg, #22c55e, #16a34a)"
+      : "linear-gradient(135deg, #9ca3af, #6b7280)";
+  const cls = isStale ? "member-marker-avatar stale-avatar" : "member-marker-avatar";
   return L.divIcon({
     className: "custom-marker member-marker",
-    html: `<div class="member-marker-avatar" style="background:${bg}">${initial}</div>`,
+    html: `<div class="${cls}" style="background:${bg}">${initial}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
+
+// Hardware tracker marker — crosshair/satellite icon with brown gradient
+const createHardwareTrackerIcon = (name) => {
+  const initial = (name || "?").charAt(0).toUpperCase();
+  return L.divIcon({
+    className: "custom-marker hardware-marker",
+    html: `<div class="hardware-marker-dot" title="${initial}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="14" height="14">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
+      </svg>
+    </div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
   });
@@ -253,16 +272,24 @@ export default function FamilyMap() {
             </Marker>
           )}
 
-          {/* Family members — avatar markers */}
+          {/* Family members — avatar or hardware tracker markers */}
           {familyMembers.map((member) => {
             const pos = getMemberPosition(member);
             if (!pos) return null;
             const isOnline = member.phoneStatus === "online";
+            const isStale = member.stale === true;
+            const isHardware = (member.lastLocationSource || "phone") === "hardware";
+            const icon = isHardware
+              ? createHardwareTrackerIcon(member.name)
+              : createMemberIcon(member.name, isOnline, isStale);
+            const statusLabel = isStale
+              ? "Possibly offline"
+              : isOnline ? "Online" : "Offline";
             return (
-              <Marker key={member.uid} position={pos} icon={createMemberIcon(member.name, isOnline)}>
+              <Marker key={member.uid} position={pos} icon={icon}>
                 <Popup>
-                  <strong>{member.name}</strong><br />
-                  {isOnline ? "Online" : "Offline"}<br />
+                  <strong>{member.name}</strong>{isHardware ? " (Tracker)" : ""}<br />
+                  {statusLabel}<br />
                   Speed: {member.lastLocation?.speed ? `${member.lastLocation.speed} km/h` : "Stopped"}<br />
                   Last seen: {formatLastSeen(member.lastSeen)}
                 </Popup>
@@ -401,15 +428,20 @@ export default function FamilyMap() {
           {familyMembers.map((member) => {
             const pos = getMemberPosition(member);
             const isOnline = member.phoneStatus === "online";
+            const isStale = member.stale === true;
+            const dotClass = isStale ? "stale" : isOnline ? "online" : "offline";
             return (
-              <div key={member.uid} className="map-member-card">
+              <div key={member.uid} className={`map-member-card${isStale ? " stale-card" : ""}`}>
                 <div className="member-status-info">
                   <div className="member-avatar">
                     {member.name?.charAt(0)}
-                    <span className={`avatar-status-dot ${isOnline ? "online" : "offline"}`} />
+                    <span className={`avatar-status-dot ${dotClass}`} />
                   </div>
                   <div className="member-text">
-                    <span className="member-name-text">{member.name}</span>
+                    <span className="member-name-text">
+                      {member.name}
+                      {isStale && <span className="stale-badge">Possibly offline</span>}
+                    </span>
                     <span className="member-sub-text">
                       {pos ? `${member.lastLocation?.speed || 0} km/h` : "No GPS"} &middot; {formatLastSeen(member.lastSeen)}
                     </span>

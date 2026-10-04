@@ -13,7 +13,7 @@ export const ZONE_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-/** Inline SVG markup (24×24 viewBox) for each zone type */
+/** Inline SVG markup (24×24 viewBox) for each zone type — used by Leaflet divIcon */
 const ZONE_ICON_SVGS = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   office: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
@@ -35,6 +35,14 @@ export function getZoneIconHtml(type, isShared = false) {
   const svg = ZONE_ICON_SVGS[safeType];
   const bgColor = isShared ? "#3b82f6" : "#22c55e";
   return `<div class="zone-marker-icon" style="background:${bgColor}">${svg}</div>`;
+}
+
+/**
+ * Returns the raw SVG HTML string for a zone type (for dangerouslySetInnerHTML in lists).
+ * @param {string} type
+ */
+export function getZoneIconSvgHtml(type) {
+  return ZONE_ICON_SVGS[type] || ZONE_ICON_SVGS.other;
 }
 
 /**

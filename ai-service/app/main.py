@@ -1,10 +1,13 @@
 """SafeTrace AI Service — FastAPI application.
 
 Endpoints:
-    POST /api/v1/predict  — Score a GPS trajectory for anomalies.
-    GET  /api/v1/health   — Health check + model status.
+    POST /api/v1/predict             — Score a GPS trajectory for anomalies.
+    POST /api/v1/hardware/location   — Receive a GPS ping from a hardware tracker.
+    POST /api/v1/notify              — Send push notifications for alerts.
+    GET  /api/v1/health              — Health check + model status.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,16 +18,27 @@ from app.model.features import FEATURE_NAMES
 from app.model.predict import DEFAULT_THRESHOLD, load_model, predict
 from app.model.train import MODEL_PATH
 from app.schemas import HealthResponse, PredictRequest, PredictResponse
+from app.routes.hardware import router as hardware_router
+from app.routes.notifications import router as notifications_router
 
 _model_bundle: dict | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load the trained model on startup."""
+    """Load the trained model and initialize Firebase on startup."""
     global _model_bundle
     if MODEL_PATH.exists():
         _model_bundle = load_model(MODEL_PATH)
+
+    # Firebase is needed for the hardware endpoint but optional —
+    # the predict endpoint should still work without it.
+    try:
+        from app.firebase import init_firebase
+        init_firebase()
+    except Exception as exc:
+        logging.warning("Firebase init failed (hardware endpoint disabled): %s", exc)
+
     yield
     _model_bundle = None
 
@@ -43,6 +57,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(hardware_router)
+app.include_router(notifications_router)
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)

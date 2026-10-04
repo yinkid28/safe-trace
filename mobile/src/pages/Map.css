@@ -473,6 +473,24 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(139, 92, 246, 0.25);
 }
 
+/* Hardware tracker: crosshair icon with brown gradient */
+.hardware-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hardware-marker-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6B4F3A, #5A4230);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(107, 79, 58, 0.25);
+}
+
 /* Alert marker: red pulsing dot with ! */
 .alert-marker {
   background: transparent !important;
@@ -530,4 +548,40 @@
 .zone-marker-icon svg {
   width: 14px;
   height: 14px;
+}
+
+/* ===== Stale / possibly-offline member styles ===== */
+
+/* Map marker: amber pulsing border for stale members */
+.stale-avatar {
+  animation: stalePulse 2.5s ease-in-out infinite;
+}
+
+@keyframes stalePulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 6px rgba(245, 158, 11, 0); }
+}
+
+/* Status dot: amber for stale */
+.avatar-status-dot.stale {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+/* Member card: subtle amber tint for stale members */
+.map-member-card.stale-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(217, 119, 6, 0.04));
+  box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.25);
+}
+
+/* "Possibly offline" badge next to member name */
+.stale-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+  margin-left: 0.35rem;
+  white-space: nowrap;
 }

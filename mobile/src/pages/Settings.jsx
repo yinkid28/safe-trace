@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../hooks/useAuth";
+import { useDevices } from "../hooks/useDevices";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { ZONE_TYPES, getZoneTypeLabel } from "../utils/safeZoneTypes";
+import { ZONE_TYPES, getZoneTypeLabel, getZoneIconSvgHtml } from "../utils/safeZoneTypes";
 import "./Settings.css";
 
 // Workaround for Leaflet marker icons in Vite
@@ -41,7 +42,14 @@ function MapEvents({ onMapClick }) {
 export default function Settings() {
   const { user, logout, refreshProfile } = useAuth();
   const [agency, setAgency] = useState(null);
-  
+
+  // Hardware Tracker States
+  const { devices, pairDevice, unpairDevice } = useDevices(user?.uid);
+  const [showPairDevice, setShowPairDevice] = useState(false);
+  const [deviceLabel, setDeviceLabel] = useState("");
+  const [pairing, setPairing] = useState(false);
+  const [newDeviceCredentials, setNewDeviceCredentials] = useState(null);
+
   // Safe Zone Picker States
   const [zoneLabel, setZoneLabel] = useState("");
   const [zoneLat, setZoneLat] = useState("");
@@ -194,6 +202,143 @@ export default function Settings() {
           </div>
         </section>
 
+        {/* HARDWARE TRACKER MANAGEMENT */}
+        {user.role !== "agency_staff" && (
+          <section className="settings-section">
+            <h2 className="section-title-line">Hardware Trackers</h2>
+            <p className="section-desc-text">
+              Pair a GPS hardware tracker (ESP32) to your account.
+              The tracker sends location data independently of your phone.
+            </p>
+
+            {/* Credentials shown once after pairing */}
+            {newDeviceCredentials && (
+              <div className="device-credentials-card">
+                <h3 className="sub-section-title">Device Paired Successfully</h3>
+                <p className="section-desc-text">
+                  Flash these credentials onto your ESP32. The device key
+                  is shown only once and cannot be recovered.
+                </p>
+                <div className="credential-row">
+                  <span className="credential-label">Device ID</span>
+                  <code className="credential-value">{newDeviceCredentials.deviceId}</code>
+                </div>
+                <div className="credential-row">
+                  <span className="credential-label">Device Key</span>
+                  <code className="credential-value">{newDeviceCredentials.deviceKey}</code>
+                </div>
+                <button
+                  className="btn-primary"
+                  onClick={() => setNewDeviceCredentials(null)}
+                  style={{ marginTop: "0.75rem" }}
+                >
+                  Done — I've saved the credentials
+                </button>
+              </div>
+            )}
+
+            {/* Pair new device form */}
+            {showPairDevice && !newDeviceCredentials ? (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!deviceLabel.trim()) return;
+                  setPairing(true);
+                  try {
+                    const creds = await pairDevice(deviceLabel, user.uid, user.familyId);
+                    setNewDeviceCredentials(creds);
+                    setDeviceLabel("");
+                    setShowPairDevice(false);
+                  } catch (err) {
+                    console.error("Pairing failed:", err);
+                    alert("Failed to pair device.");
+                  } finally {
+                    setPairing(false);
+                  }
+                }}
+                className="picker-coords-form"
+              >
+                <div className="picker-input-group">
+                  <label className="picker-input-lbl">Tracker Label</label>
+                  <input
+                    type="text"
+                    placeholder='e.g. "School Backpack Tracker"'
+                    value={deviceLabel}
+                    onChange={(e) => setDeviceLabel(e.target.value)}
+                    className="auth-input"
+                    required
+                  />
+                </div>
+                <div className="form-actions" style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowPairDevice(false)}
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={pairing} style={{ flex: 1 }}>
+                    {pairing ? "Pairing..." : "Generate Credentials"}
+                  </button>
+                </div>
+              </form>
+            ) : !newDeviceCredentials ? (
+              <button className="btn-primary" onClick={() => setShowPairDevice(true)}>
+                + Pair New Tracker
+              </button>
+            ) : null}
+
+            {/* List of paired devices */}
+            {devices.length > 0 && (
+              <div className="existing-zones-list-wrapper">
+                <h3 className="sub-section-title">Paired Devices</h3>
+                <div className="zones-grid-layout">
+                  {devices.map((device) => {
+                    const lastSeenText = (() => {
+                      if (!device.lastSeen) return "";
+                      const date = device.lastSeen.toDate
+                        ? device.lastSeen.toDate()
+                        : new Date(device.lastSeen);
+                      const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+                      if (diff < 60) return "just now";
+                      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                    })();
+
+                    return (
+                      <div key={device.id} className="zone-grid-card">
+                        <div className="zone-grid-card-text">
+                          <span className="zone-grid-lbl">{device.label}</span>
+                          <span className="zone-grid-type">{device.deviceId}</span>
+                          <span className="zone-grid-coords">
+                            {device.status === "online"
+                              ? `Online — ${device.batteryVoltage?.toFixed(2) ?? "?"}V`
+                              : device.status === "never_connected"
+                                ? "Never connected"
+                                : "Offline"}
+                            {lastSeenText ? ` — Last seen ${lastSeenText}` : ""}
+                          </span>
+                        </div>
+                        <button
+                          className="btn-delete-zone-grid"
+                          onClick={() => {
+                            if (window.confirm("Unpair this tracker? It will stop sending location data.")) {
+                              unpairDevice(device.id);
+                            }
+                          }}
+                        >
+                          Unpair
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* MAPPED SAFE ZONE COORDINATOR */}
         {user.role !== "agency_staff" && (
           <section className="settings-section">
@@ -250,15 +395,19 @@ export default function Settings() {
                 </div>
                 <div className="picker-input-group">
                   <label className="picker-input-lbl">Zone Type</label>
-                  <select
-                    value={zoneType}
-                    onChange={(e) => setZoneType(e.target.value)}
-                    className="auth-input"
-                  >
+                  <div className="zone-type-grid">
                     {ZONE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
+                      <button
+                        key={t.value}
+                        type="button"
+                        className={`zone-type-chip${zoneType === t.value ? " zone-type-chip--active" : ""}`}
+                        onClick={() => setZoneType(t.value)}
+                      >
+                        <span className="zone-type-chip-icon" dangerouslySetInnerHTML={{ __html: getZoneIconSvgHtml(t.value) }} />
+                        <span>{t.label}</span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 <div className="picker-coords-inputs-row">
                   <div className="picker-input-group">

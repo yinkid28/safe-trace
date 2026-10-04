@@ -1,5 +1,7 @@
 """Pydantic models for SafeTrace AI service request/response validation."""
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -54,3 +56,25 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     feature_count: int
+
+
+# --- Hardware tracker ---
+
+
+class HardwareLocationRequest(BaseModel):
+    """Incoming GPS ping from an ESP32 hardware tracker."""
+
+    deviceId: str = Field(min_length=1, description="Device identifier, e.g. ST-0001")
+    deviceKey: str = Field(min_length=1, description="Pre-shared secret for authentication")
+    lat: float = Field(ge=-90, le=90, description="Latitude in degrees")
+    lon: float = Field(ge=-180, le=180, description="Longitude in degrees")
+    speed: float = Field(ge=0, default=0.0, description="Speed in km/h")
+    sats: int = Field(ge=0, default=0, description="Number of GPS satellites")
+    batt: float = Field(ge=0, default=0.0, description="Battery voltage")
+    ts: Optional[int] = Field(default=None, gt=0, description="Unix timestamp in seconds; server timestamps if omitted")
+
+
+class HardwareLocationResponse(BaseModel):
+    """Minimal response for bandwidth-constrained 2G connections."""
+
+    ok: bool

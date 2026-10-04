@@ -19,7 +19,11 @@ The `userId` is the Firebase Auth UID.
 | `lastLocation` | map \| null | `{ lat, lng, speed, heading }` |
 | `lastSeen` | timestamp \| null | Last location update time |
 | `phoneStatus` | string | `"online"` or `"offline"` |
+| `lastLocationSource` | string \| null | `"phone"` or `"hardware"` — which source provided the latest location |
 | `safeZones` | array of maps | `[{ lat, lng, label }]` — maps to AI service `PredictRequest.safe_zones` |
+| `deviceType` | string | `"mobile"` (set at registration) |
+| `fcmTokens` | array of strings | FCM registration tokens for push notifications (one per device/browser) |
+| `activeCheckIn` | map \| null | `{ expiresAt, label }` — active safety check-in timer |
 | `createdAt` | timestamp | Account creation time |
 
 ---
@@ -52,8 +56,12 @@ Stores periodic GPS breadcrumbs for passive movement tracking (written every 5 m
 | `heading` | number \| null | Compass heading in degrees |
 | `timestamp` | timestamp | Server timestamp for ordering |
 | `clientTimestamp` | number | Unix ms from client, for dedup |
+| `source` | string \| null | `"phone"` or `"hardware"` — absent on legacy entries (treated as `"phone"`) |
+| `deviceId` | string \| null | Only for hardware entries, e.g. `"ST-0001"` |
+| `satellites` | number \| null | Only for hardware entries — GPS satellite count |
+| `batteryVoltage` | number \| null | Only for hardware entries |
 
-**Access:** Owner, family members, and linked agency staff can read. Only the user can create.
+**Access:** Owner, family members, and linked agency staff can read. Phone entries created by client; hardware entries created by AI service (Admin SDK).
 
 ---
 
@@ -64,8 +72,33 @@ Stores periodic GPS breadcrumbs for passive movement tracking (written every 5 m
 | `name` | string | e.g. `"Yaba Security Services"` |
 | `staffUserIds` | array of strings | UIDs of agency staff |
 | `phone` | string \| null | Contact number |
+| `status` | string | `"pending"` \| `"verified"` |
+| `areaOfOperation` | string \| null | Geographic area the agency covers |
 | `address` | string \| null | Physical address |
 | `createdAt` | timestamp | |
+
+---
+
+## `devices/{deviceId}`
+
+Hardware GPS trackers paired to user accounts. The `deviceId` is a formatted string like `ST-0001`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `deviceId` | string | Same as the document ID, e.g. `"ST-0001"` |
+| `keyHash` | string | SHA-256 hash of `(keySalt + deviceKey)` |
+| `keySalt` | string | Random salt for the key hash |
+| `pairedUserId` | string | UID of the user this tracker is paired to |
+| `familyId` | string \| null | Denormalized from the user's `familyId` |
+| `label` | string | User-given name, e.g. `"School Backpack Tracker"` |
+| `batteryVoltage` | number \| null | Last reported battery voltage |
+| `satellites` | number \| null | Last reported GPS satellite count |
+| `lastSeen` | timestamp \| null | Last successful location ping |
+| `status` | string | `"online"` \| `"offline"` \| `"never_connected"` |
+| `createdAt` | timestamp | When the device was paired |
+| `createdBy` | string | UID of the user who created the pairing |
+
+**Access:** Paired user and family members can read. Only paired user can create/update/delete. Hardware endpoint writes via Admin SDK (bypasses rules).
 
 ---
 
