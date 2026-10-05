@@ -355,11 +355,11 @@ export default function FamilyMap() {
             ) : null
           )}
 
-          {/* Movement history trail (purple) */}
+          {/* Movement history trail */}
           {trailPoints.length > 1 && (
             <Polyline
               positions={trailPoints}
-              color="#8b5cf6"
+              color="#6B4F3A"
               weight={3.5}
               opacity={0.8}
               dashArray="6, 8"

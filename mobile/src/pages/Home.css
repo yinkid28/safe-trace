@@ -36,7 +36,7 @@
 
 .status-dot.online {
   background: var(--color-safe);
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
 }
 
 .status-dot.offline {
@@ -91,12 +91,12 @@
   border: none;
   color: var(--color-danger);
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15);
 }
 
 .panic-button.ready:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.25);
 }
 
 .panic-button.ready:active {
@@ -139,7 +139,7 @@
 }
 
 .panic-button.active {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: var(--color-danger-gradient);
   border: none;
   color: white;
   cursor: pointer;
@@ -273,7 +273,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
@@ -306,14 +306,14 @@
 }
 
 .btn-safe-checkin {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: var(--color-safe-gradient);
   color: white;
   border: none;
   padding: 0.4rem 0.9rem;
   border-radius: var(--radius-pill);
   font-weight: 600;
   font-size: 0.8rem;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
   transition: all var(--transition-fast);
 }
 
@@ -384,7 +384,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.3);
   animation: userPulse 2s ease-out infinite;
 }
 
@@ -397,10 +397,10 @@
   position: relative;
   width: 14px;
   height: 14px;
-  background: #3b82f6;
+  background: var(--color-accent);
   border: 3px solid white;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6), 0 0 20px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.15);
   margin: 5px;
 }
 
@@ -422,7 +422,7 @@
 .zone-shared-badge {
   display: inline-block;
   font-size: 0.65rem;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: var(--color-accent-gradient);
   color: white;
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-pill);
@@ -728,8 +728,8 @@
 .anomaly-safe-btn {
   width: 100%;
   margin-top: 0.5rem;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  background: var(--color-safe-gradient);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
 }
 
 .anomaly-safe-btn:active {
@@ -810,13 +810,13 @@
 }
 
 .zone-type-icon--personal {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  background: var(--color-safe-gradient);
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.25);
 }
 
 .zone-type-icon--shared {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  background: var(--color-accent-gradient);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
 }
 
 /* Zone type selector grid */
@@ -870,14 +870,14 @@
   gap: 0.6rem;
 }
 
-/* Active state — subtle purple tint */
+/* Active state — subtle brown tint */
 .checkin-active {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04), rgba(59, 130, 246, 0.04));
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15), var(--shadow-sm);
+  background: linear-gradient(135deg, rgba(107, 79, 58, 0.04), rgba(138, 106, 81, 0.04));
+  box-shadow: 0 0 0 2px rgba(107, 79, 58, 0.15), var(--shadow-sm);
 }
 
 .checkin-active-title {
-  color: #7c3aed;
+  color: var(--color-primary);
 }
 
 /* Grace period — warning amber */
@@ -914,9 +914,9 @@
 }
 
 .checkin-duration-btn.selected {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: var(--color-primary-gradient);
   color: white;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(107, 79, 58, 0.25);
 }
 
 /* Optional note input */
@@ -933,14 +933,14 @@
 
 .checkin-note-input:focus {
   outline: none;
-  border-color: #8b5cf6;
+  border-color: var(--color-primary);
 }
 
 /* Start button */
 .checkin-start-btn {
   width: 100%;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  background: var(--color-primary-gradient);
+  box-shadow: 0 2px 8px rgba(107, 79, 58, 0.25);
 }
 
 .checkin-start-btn:disabled {
@@ -958,7 +958,7 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  color: #7c3aed;
+  color: var(--color-primary);
   letter-spacing: 0.05em;
   padding: 0.5rem 0;
 }
@@ -979,8 +979,8 @@
 
 .checkin-safe-btn {
   flex: 1;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  background: var(--color-safe-gradient);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
 }
 
 .checkin-safe-btn:active {

@@ -128,8 +128,8 @@
 }
 
 .alert-badge-type.checkin {
-  background: rgba(139, 92, 246, 0.1);
-  color: #7c3aed;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
 }
 
 .alert-card-time {

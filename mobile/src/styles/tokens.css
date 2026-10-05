@@ -5,18 +5,24 @@
   --color-primary-light: #8A6A51;
   --color-primary-lighter: #C4A882;
   --color-primary-subtle: #F5EDE5;
-  --color-primary-gradient: linear-gradient(135deg, #7B5D45, #5A4230);
+  --color-primary-gradient: linear-gradient(135deg, #6B4F3A, #5A4230);
 
   --color-surface: #FFFFFF;
   --color-surface-raised: #FAFAF9;
   --color-background: #F5F5F7;
 
   --color-danger: #EF4444;
+  --color-danger-hover: #DC2626;
   --color-danger-light: #FEF2F2;
+  --color-danger-gradient: linear-gradient(135deg, #EF4444, #DC2626);
   --color-safe: #22C55E;
+  --color-safe-hover: #16A34A;
   --color-safe-light: #F0FDF4;
+  --color-safe-gradient: linear-gradient(135deg, #22C55E, #16A34A);
   --color-warning: #F59E0B;
+  --color-warning-hover: #D97706;
   --color-warning-light: #FFFBEB;
+  --color-warning-gradient: linear-gradient(135deg, #F59E0B, #D97706);
 
   --color-text-primary: #1A1A1A;
   --color-text-secondary: #6B7280;
@@ -26,7 +32,9 @@
   --color-disabled: #D1D5DB;
 
   --color-accent: #3B82F6;
+  --color-accent-hover: #2563EB;
   --color-accent-light: rgba(59, 130, 246, 0.08);
+  --color-accent-gradient: linear-gradient(135deg, #3B82F6, #2563EB);
 
   --color-map-route: #6B4F3A;
   --color-map-user: #22C55E;

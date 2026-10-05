@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #3b82f6;
+  color: var(--color-accent);
   cursor: pointer;
   transition: box-shadow var(--transition-fast), transform var(--transition-fast);
 }
@@ -116,10 +116,10 @@
   font-size: 0.7rem;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: var(--color-danger-gradient);
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-pill);
-  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.25);
 }
 
 .map-members-list {
@@ -145,8 +145,8 @@
 }
 
 .map-member-card.you-card {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(139, 92, 246, 0.04));
-  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.2);
+  background: linear-gradient(135deg, rgba(107, 79, 58, 0.05), rgba(138, 106, 81, 0.03));
+  box-shadow: 0 0 0 1.5px rgba(107, 79, 58, 0.15);
 }
 
 .member-status-info {
@@ -160,7 +160,7 @@
 .member-avatar {
   width: 2.2rem;
   height: 2.2rem;
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  background: var(--color-primary-gradient);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -170,12 +170,12 @@
   font-size: 1rem;
   position: relative;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 6px rgba(107, 79, 58, 0.25);
 }
 
 .member-avatar.you-avatar {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  background: var(--color-primary-gradient);
+  box-shadow: 0 2px 6px rgba(107, 79, 58, 0.3);
 }
 
 .avatar-status-dot {
@@ -189,8 +189,8 @@
 }
 
 .avatar-status-dot.online {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  background: var(--color-safe);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
 }
 
 .avatar-status-dot.offline {
@@ -215,7 +215,7 @@
 .you-badge {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 .member-sub-text {
@@ -225,8 +225,8 @@
 }
 
 .btn-locate-member {
-  background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
   border: none;
   padding: 0.35rem 0.7rem;
   border-radius: var(--radius-pill);
@@ -238,7 +238,7 @@
 }
 
 .btn-locate-member:active {
-  background: #3b82f6;
+  background: var(--color-accent);
   color: white;
   transform: scale(0.97);
 }
@@ -257,8 +257,8 @@
   padding: 0.3rem 0.65rem;
   border-radius: var(--radius-pill);
   border: none;
-  color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.08);
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
   cursor: pointer;
   min-height: 32px;
   font-weight: 700;
@@ -266,9 +266,9 @@
 }
 
 .btn-view-trail.active {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: var(--color-primary-gradient);
   color: white;
-  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 6px rgba(107, 79, 58, 0.25);
 }
 
 .btn-view-trail:active {
@@ -330,7 +330,7 @@
 .alert-user-name {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #dc2626;
+  color: var(--color-danger-hover);
   display: block;
 }
 
@@ -350,7 +350,7 @@
 }
 
 .btn-locate-alert {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: var(--color-danger-gradient);
   color: white;
   border: none;
   padding: 0.3rem 0.6rem;
@@ -364,7 +364,7 @@
 .btn-dismiss-alert {
   background: rgba(239, 68, 68, 0.08);
   border: none;
-  color: #dc2626;
+  color: var(--color-danger-hover);
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -376,7 +376,7 @@
 }
 
 .btn-dismiss-alert:active {
-  background: #dc2626;
+  background: var(--color-danger-hover);
   color: white;
   transform: scale(0.97);
 }
@@ -391,7 +391,7 @@
 
 .no-alerts-text {
   font-size: 0.8rem;
-  color: #22c55e;
+  color: var(--color-safe);
 }
 
 /* ===== No family overlay card ===== */
@@ -433,7 +433,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.3);
   animation: userPulse 2s ease-out infinite;
 }
 
@@ -446,10 +446,10 @@
   position: relative;
   width: 14px;
   height: 14px;
-  background: #3b82f6;
+  background: var(--color-accent);
   border: 3px solid white;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6), 0 0 20px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.15);
   margin: 5px;
 }
 
@@ -470,7 +470,7 @@
   align-items: center;
   justify-content: center;
   border: 2.5px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(139, 92, 246, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(107, 79, 58, 0.2);
 }
 
 /* Hardware tracker: crosshair icon with brown gradient */
@@ -501,9 +501,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: var(--color-danger-gradient);
   border: 2px solid white;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6), 0 0 24px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5), 0 0 24px rgba(239, 68, 68, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -564,7 +564,7 @@
 
 /* Status dot: amber for stale */
 .avatar-status-dot.stale {
-  background: #f59e0b;
+  background: var(--color-warning);
   box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
 }
 
@@ -578,7 +578,7 @@
 .stale-badge {
   font-size: 0.65rem;
   font-weight: 600;
-  color: #d97706;
+  color: var(--color-warning-hover);
   background: rgba(245, 158, 11, 0.12);
   padding: 0.1rem 0.4rem;
   border-radius: var(--radius-pill);
