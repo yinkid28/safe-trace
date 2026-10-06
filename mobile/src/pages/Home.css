@@ -991,3 +991,144 @@
   flex: 0 0 auto;
   padding: 0.55rem 1rem;
 }
+
+/* Join Requests (Admin) */
+.join-requests-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.join-request-card {
+  background: var(--color-background);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.request-info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.request-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.request-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-gradient);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.request-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.request-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.request-detail {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-approve {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--color-safe-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.btn-approve:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-approve:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-reject {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--color-background);
+  color: var(--color-danger);
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.btn-reject:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-reject:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pending Join State (Requester) */
+.pending-join-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pending-join-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.pending-join-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-warning);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.pending-join-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-warning);
+  margin-bottom: 0.15rem;
+}

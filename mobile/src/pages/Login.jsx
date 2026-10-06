@@ -14,7 +14,13 @@ export default function Login() {
   const [resetMode, setResetMode] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <SafeTraceLogo size="md" animate />
+      </div>
+    );
+  }
   if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e) => {

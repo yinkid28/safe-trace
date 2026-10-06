@@ -66,7 +66,8 @@ export default function Layout() {
         error={chat.error}
         askQuestion={chat.askQuestion}
         clearChat={chat.clearChat}
-        enabled={members.length > 0}
+        enabled={!!user?.familyId}
+        hasMembers={members.length > 0}
       />
     </div>
   );

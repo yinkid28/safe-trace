@@ -1,5 +1,6 @@
 import { Navigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
+import SafeTraceLogo from "./SafeTraceLogo";
 
 export default function ProtectedRoute({ children }) {
   const { authUser, user, loading } = useAuth();
@@ -7,7 +8,7 @@ export default function ProtectedRoute({ children }) {
   if (loading) {
     return (
       <div className="loading-screen">
-        <div className="loading-spinner" />
+        <SafeTraceLogo size="md" animate />
       </div>
     );
   }

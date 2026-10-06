@@ -81,6 +81,8 @@ export function AuthProvider({ children }) {
           phone,
           role,
           familyId: null,
+          pendingFamilyId: null,
+          profilePhoto: null,
           agencyId,
           lastLocation: null,
           lastSeen: null,

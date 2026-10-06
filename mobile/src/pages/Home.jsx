@@ -11,6 +11,9 @@ import {
   where,
   serverTimestamp,
   arrayUnion,
+  onSnapshot,
+  writeBatch,
+  orderBy,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
@@ -101,6 +104,11 @@ export default function Home() {
   const [showDirectAgency, setShowDirectAgency] = useState(false);
   const [linkingAgency, setLinkingAgency] = useState(false);
 
+  // Join approval state
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingFamilyName, setPendingFamilyName] = useState("");
+  const [processingRequest, setProcessingRequest] = useState(null);
+
   // Safe Zones Panel States
   const [showAddZone, setShowAddZone] = useState(false);
   const [zoneLabel, setZoneLabel] = useState("");
@@ -148,6 +156,40 @@ export default function Home() {
       setAgencies(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     }).catch(() => {});
   }, []);
+
+  // Admin: listen for pending join requests
+  useEffect(() => {
+    if (!user?.familyId || user.role !== "family_admin") {
+      setPendingRequests([]);
+      return;
+    }
+    const q = query(
+      collection(db, "families", user.familyId, "joinRequests"),
+      where("status", "==", "pending"),
+      orderBy("createdAt", "asc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setPendingRequests(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
+    }, () => {
+      setPendingRequests([]);
+    });
+    return unsub;
+  }, [user?.familyId, user?.role]);
+
+  // Requester: fetch pending family name
+  useEffect(() => {
+    if (!user?.pendingFamilyId) {
+      setPendingFamilyName("");
+      return;
+    }
+    getDoc(doc(db, "families", user.pendingFamilyId)).then((snap) => {
+      if (snap.exists()) {
+        setPendingFamilyName(snap.data().name || "Unknown Family");
+      }
+    });
+  }, [user?.pendingFamilyId]);
 
   // AI anomaly auto-escalation: create an alert if user didn't confirm safe
   useEffect(() => {
@@ -583,6 +625,11 @@ export default function Home() {
     e.preventDefault();
     setError(null);
 
+    if (user.pendingFamilyId) {
+      setError("You already have a pending join request.");
+      return;
+    }
+
     const code = joinFamilyId.trim().toUpperCase();
     if (!code) {
       setError("Please enter a family code.");
@@ -602,24 +649,116 @@ export default function Home() {
 
       const familyDoc = snap.docs[0];
       const familyId = familyDoc.id;
+      const familyData = familyDoc.data();
 
-      // Add user to the family's members array
-      await updateDoc(doc(db, "families", familyId), {
-        members: arrayUnion(user.uid),
+      // Create a join request instead of directly joining
+      const requestRef = doc(collection(db, "families", familyId, "joinRequests"));
+      await setDoc(requestRef, {
+        userId: user.uid,
+        userName: user.name,
+        userEmail: user.email,
+        userPhone: user.phone || "",
+        profilePhoto: user.profilePhoto || null,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        respondedAt: null,
+        respondedBy: null,
       });
 
-      // Set the user's familyId
+      // Set pendingFamilyId on user doc
       await updateDoc(doc(db, "users", user.uid), {
+        pendingFamilyId: familyId,
+      });
+
+      // Notify the family admin
+      sendNotification({
+        alertId: requestRef.id,
+        alertType: "join_request",
+        userName: user.name,
         familyId,
+        agencyId: familyData.agencyId || "",
+        locationName: "",
       });
 
       await refreshProfile();
       setShowJoinFamily(false);
       setJoinFamilyId("");
     } catch (err) {
-      setError("Failed to join family. Please try again.");
+      setError("Failed to send join request. Please try again.");
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleCancelJoinRequest = async () => {
+    if (!user.pendingFamilyId) return;
+    setJoining(true);
+    setError(null);
+    try {
+      // Find and cancel the pending request
+      const reqQuery = query(
+        collection(db, "families", user.pendingFamilyId, "joinRequests"),
+        where("userId", "==", user.uid),
+        where("status", "==", "pending")
+      );
+      const reqSnap = await getDocs(reqQuery);
+
+      const batch = writeBatch(db);
+      reqSnap.docs.forEach((d) => {
+        batch.update(d.ref, { status: "cancelled" });
+      });
+      batch.update(doc(db, "users", user.uid), { pendingFamilyId: null });
+      await batch.commit();
+
+      await refreshProfile();
+    } catch (err) {
+      setError("Failed to cancel request. Please try again.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleApproveJoin = async (request) => {
+    setProcessingRequest(request.id);
+    try {
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, "families", user.familyId, "joinRequests", request.id),
+        { status: "approved", respondedAt: serverTimestamp(), respondedBy: user.uid }
+      );
+      batch.update(
+        doc(db, "families", user.familyId),
+        { members: arrayUnion(request.userId) }
+      );
+      batch.update(
+        doc(db, "users", request.userId),
+        { familyId: user.familyId, pendingFamilyId: null }
+      );
+      await batch.commit();
+    } catch (err) {
+      console.error("Approve join failed:", err);
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  const handleRejectJoin = async (request) => {
+    setProcessingRequest(request.id);
+    try {
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, "families", user.familyId, "joinRequests", request.id),
+        { status: "rejected", respondedAt: serverTimestamp(), respondedBy: user.uid }
+      );
+      batch.update(
+        doc(db, "users", request.userId),
+        { pendingFamilyId: null }
+      );
+      await batch.commit();
+    } catch (err) {
+      console.error("Reject join failed:", err);
+    } finally {
+      setProcessingRequest(null);
     }
   };
 
@@ -969,13 +1108,78 @@ export default function Home() {
               <p className="card-detail">No other members yet. Share your join code to invite family.</p>
             )}
           </div>
+
+          {/* Admin: Pending Join Requests */}
+          {user.role === "family_admin" && pendingRequests.length > 0 && (
+            <div className="join-requests-section">
+              <h3 className="members-list-title">Pending Join Requests</h3>
+              {pendingRequests.map((req) => (
+                <div key={req.id} className="join-request-card">
+                  <div className="request-info-row">
+                    {req.profilePhoto ? (
+                      <img src={req.profilePhoto} alt="" className="request-avatar" />
+                    ) : (
+                      <div className="request-avatar request-avatar-placeholder">
+                        {(req.userName || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="request-info">
+                      <span className="request-name">{req.userName}</span>
+                      <span className="request-detail">{req.userEmail}</span>
+                      {req.userPhone && (
+                        <span className="request-detail">{req.userPhone}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="request-actions">
+                    <button
+                      className="btn-approve"
+                      onClick={() => handleApproveJoin(req)}
+                      disabled={processingRequest === req.id}
+                    >
+                      {processingRequest === req.id ? "..." : "Approve"}
+                    </button>
+                    <button
+                      className="btn-reject"
+                      onClick={() => handleRejectJoin(req)}
+                      disabled={processingRequest === req.id}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {!user.familyId && !user.directAgencyId && user.role !== "agency_staff" && (
         <section className="home-card">
           <h2 className="card-title">Get Protected</h2>
-          {showCreateFamily ? (
+          {user.pendingFamilyId ? (
+            <div className="pending-join-state">
+              {error && <div className="form-error">{error}</div>}
+              <div className="pending-join-info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pending-join-icon">
+                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                </svg>
+                <div>
+                  <p className="pending-join-title">Request Pending</p>
+                  <p className="card-detail">
+                    Waiting for the admin of <strong>{pendingFamilyName || "the family"}</strong> to approve your join request.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn-secondary"
+                onClick={handleCancelJoinRequest}
+                disabled={joining}
+              >
+                {joining ? "Cancelling..." : "Cancel Request"}
+              </button>
+            </div>
+          ) : showCreateFamily ? (
             <form onSubmit={handleCreateFamily} className="create-family-form">
               {error && <div className="form-error">{error}</div>}
               <input

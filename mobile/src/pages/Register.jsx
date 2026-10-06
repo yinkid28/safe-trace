@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../hooks/useAuth";
+import { auth, storage, db } from "../config/firebase";
 import SafeTraceLogo from "../components/SafeTraceLogo";
 import "./Auth.css";
 
@@ -22,11 +27,21 @@ export default function Register() {
     confirmPassword: "",
     agencyCode: "",
   });
+  const [selfieBase64, setSelfieBase64] = useState(null);
+  const [validatedAgencyId, setValidatedAgencyId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <SafeTraceLogo size="md" animate />
+      </div>
+    );
+  }
   if (user) return <Navigate to="/" replace />;
+
+  const isNative = Capacitor.isNativePlatform();
 
   const updateField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -37,7 +52,8 @@ export default function Register() {
     setStep(2);
   };
 
-  const handleSubmit = async (e) => {
+  // Step 2 form submission — validate then move to selfie step
+  const handleFormSubmit = (e) => {
     e.preventDefault();
     setError(null);
 
@@ -60,7 +76,31 @@ export default function Register() {
       }
     }
 
+    setValidatedAgencyId(agencyId);
+    setStep(3);
+  };
+
+  // Selfie capture
+  const handleCaptureSelfie = async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 70,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+        allowEditing: false,
+        width: 800,
+      });
+      setSelfieBase64(photo.base64String);
+    } catch {
+      // Camera unavailable or permission denied
+    }
+  };
+
+  // Final account creation (called from Step 3 after selfie capture)
+  const handleFinalSubmit = async () => {
+    setError(null);
     setSubmitting(true);
+
     try {
       await register({
         name: form.name,
@@ -68,8 +108,31 @@ export default function Register() {
         phone: form.phone,
         password: form.password,
         role,
-        agencyId,
+        agencyId: validatedAgencyId,
       });
+
+      // Upload selfie
+      if (selfieBase64 && auth.currentUser) {
+        try {
+          const byteChars = atob(photoData);
+          const byteArray = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) {
+            byteArray[i] = byteChars.charCodeAt(i);
+          }
+          const blob = new Blob([byteArray], { type: "image/jpeg" });
+          const storageRef = ref(
+            storage,
+            `profiles/${auth.currentUser.uid}/selfie.jpg`
+          );
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+          await updateDoc(doc(db, "users", auth.currentUser.uid), {
+            profilePhoto: url,
+          });
+        } catch {
+          // Photo upload failed — account still created successfully
+        }
+      }
     } catch (err) {
       if (err.code === "auth/email-already-in-use") {
         setError("An account with this email already exists.");
@@ -78,7 +141,6 @@ export default function Register() {
       } else {
         setError("Registration failed. Please try again.");
       }
-    } finally {
       setSubmitting(false);
     }
   };
@@ -132,6 +194,79 @@ export default function Register() {
     );
   }
 
+  // Step 3: selfie capture
+  if (step === 3) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <button type="button" className="back-btn" onClick={() => { setStep(2); setError(null); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:"0.9em",height:"0.9em",verticalAlign:"middle",display:"inline",marginRight:"0.2em"}}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg> Back
+          </button>
+          <h1 className="auth-logo">SafeTrace</h1>
+          <p className="auth-subtitle">Identity Verification</p>
+
+          <div className="selfie-step">
+            {error && <div className="auth-error">{error}</div>}
+
+            {selfieBase64 ? (
+              <div className="selfie-preview-container">
+                <img
+                  src={`data:image/jpeg;base64,${selfieBase64}`}
+                  alt="Your selfie"
+                  className="selfie-preview-img"
+                />
+                <div className="selfie-actions">
+                  <button
+                    type="button"
+                    className="btn-retake"
+                    onClick={() => setSelfieBase64(null)}
+                    disabled={submitting}
+                  >
+                    Retake
+                  </button>
+                  <button
+                    type="button"
+                    className="auth-button"
+                    onClick={handleFinalSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Creating account..." : "Confirm & Register"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="selfie-capture-container">
+                <div className="selfie-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="selfie-camera-icon">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <p className="selfie-hint">
+                    {isNative
+                      ? "Take a selfie for identity verification"
+                      : "Upload a photo for identity verification"}
+                  </p>
+                  <span className="selfie-hint-sub">
+                    Required for identity verification when requesting to join a family.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="auth-button"
+                  onClick={handleCaptureSelfie}
+                  disabled={submitting}
+                >
+                  {isNative ? "Take Selfie" : "Upload Photo"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Step 2: registration form
   return (
     <div className="auth-page">
@@ -146,7 +281,7 @@ export default function Register() {
             : "Create your account"}
         </p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleFormSubmit} className="auth-form">
           {error && <div className="auth-error">{error}</div>}
 
           <label className="auth-label">
@@ -229,7 +364,7 @@ export default function Register() {
           </label>
 
           <button type="submit" className="auth-button" disabled={submitting}>
-            {submitting ? "Creating account..." : "Register"}
+            Next
           </button>
         </form>
 

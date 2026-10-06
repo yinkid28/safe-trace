@@ -15,6 +15,8 @@ The `userId` is the Firebase Auth UID.
 | `phone` | string | Nigerian format, e.g. `"+2348012345678"` |
 | `role` | string | `"user"` \| `"family_admin"` \| `"agency_staff"` |
 | `familyId` | string \| null | Doc ID in `families` collection |
+| `pendingFamilyId` | string \| null | Family ID of a pending join request (cleared on approval/rejection) |
+| `profilePhoto` | string \| null | Profile selfie URL captured during registration |
 | `agencyId` | string \| null | Only set for `agency_staff` role |
 | `lastLocation` | map \| null | `{ lat, lng, speed, heading }` |
 | `lastSeen` | timestamp \| null | Last location update time |
@@ -39,6 +41,26 @@ The `userId` is the Firebase Auth UID.
 | `joinCode` | string | Human-readable join code, e.g. `"ADK-4429"` |
 | `sharedSafeZones` | array of maps | `[{ lat, lng, label, addedBy }]` — shared across all family members |
 | `createdAt` | timestamp | |
+
+---
+
+## `families/{familyId}/joinRequests/{requestId}`
+
+Subcollection for tracking family join requests. Replaces the old instant-join-by-code flow with an admin approval workflow.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `userId` | string | Requesting user's UID |
+| `userName` | string | Requester's display name |
+| `userEmail` | string | Requester's email |
+| `userPhone` | string | Requester's phone number |
+| `profilePhoto` | string \| null | Selfie URL from registration |
+| `status` | string | `"pending"` \| `"approved"` \| `"rejected"` \| `"cancelled"` |
+| `createdAt` | timestamp | When the request was made |
+| `respondedAt` | timestamp \| null | When the admin responded |
+| `respondedBy` | string \| null | Admin's UID who responded |
+
+**Access:** Family admin can read all and approve/reject. Requester can read and cancel their own pending requests. `userId` field is immutable on updates.
 
 ---
 
