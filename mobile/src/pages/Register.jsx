@@ -114,7 +114,7 @@ export default function Register() {
       // Upload selfie
       if (selfieBase64 && auth.currentUser) {
         try {
-          const byteChars = atob(photoData);
+          const byteChars = atob(selfieBase64);
           const byteArray = new Uint8Array(byteChars.length);
           for (let i = 0; i < byteChars.length; i++) {
             byteArray[i] = byteChars.charCodeAt(i);

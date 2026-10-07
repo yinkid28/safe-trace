@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -18,6 +18,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Guard: prevent onAuthStateChanged from overwriting user during registration.
+  // createUserWithEmailAndPassword fires onAuthStateChanged before setDoc runs,
+  // so the listener's fetchUserProfile finds no doc and sets user to null.
+  const registeringRef = useRef(false);
 
   const fetchUserProfile = useCallback(async (uid) => {
     const snap = await getDoc(doc(db, "users", uid));
@@ -34,7 +38,12 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setAuthUser(firebaseUser);
       if (firebaseUser) {
-        await fetchUserProfile(firebaseUser.uid);
+        // Skip profile fetch if register() is in progress — it handles its own fetch
+        // after the Firestore doc is created, avoiding a race where this listener
+        // finds no doc and sets user to null.
+        if (!registeringRef.current) {
+          await fetchUserProfile(firebaseUser.uid);
+        }
       } else {
         setUser(null);
       }
@@ -69,6 +78,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(
     async ({ name, email, phone, password, role = "personal", agencyId = null }) => {
       setError(null);
+      registeringRef.current = true;
       let createdUser = null;
       try {
         const result = await createUserWithEmailAndPassword(auth, email, password);
@@ -105,6 +115,8 @@ export function AuthProvider({ children }) {
         }
         setError(err.message);
         throw err;
+      } finally {
+        registeringRef.current = false;
       }
     },
     [fetchUserProfile]
