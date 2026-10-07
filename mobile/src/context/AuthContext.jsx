@@ -150,7 +150,10 @@ export function AuthProvider({ children }) {
     register,
     logout,
     resetPassword,
-    refreshProfile: () => authUser && fetchUserProfile(authUser.uid),
+    refreshProfile: () => {
+      if (!authUser) return Promise.resolve(false);
+      return fetchUserProfile(authUser.uid);
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

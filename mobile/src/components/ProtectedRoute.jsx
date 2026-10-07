@@ -12,7 +12,16 @@ export default function ProtectedRoute({ children }) {
   // fires before the Firestore user doc is written.
   useEffect(() => {
     if (!loading && authUser && !user && !retried) {
-      refreshProfile().finally(() => setRetried(true));
+      try {
+        const result = refreshProfile();
+        if (result && typeof result.then === "function") {
+          result.catch(() => {}).finally(() => setRetried(true));
+        } else {
+          setRetried(true);
+        }
+      } catch {
+        setRetried(true);
+      }
     }
   }, [loading, authUser, user, retried, refreshProfile]);
 
