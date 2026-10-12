@@ -11,7 +11,7 @@ const LEARNING_PERIOD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * Check if the user's account is within the learning period.
  * During this period the AI collects data but suppresses alerts.
  */
-function isInLearningPeriod(user) {
+export function isInLearningPeriod(user) {
   if (!user?.createdAt) return false;
   const createdMs =
     typeof user.createdAt.toMillis === "function"
@@ -39,6 +39,7 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
   const [anomalyAlert, setAnomalyAlert] = useState(null);
   const [escalate, setEscalate] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [latestInsight, setLatestInsight] = useState(null);
   const lastScoredCount = useRef(0);
   const countdownRef = useRef(null);
   const intervalRef = useRef(null);
@@ -87,6 +88,12 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
             explanations: data.explanations || [],
           });
           startCheckinCountdown();
+        } else if (!data.is_anomaly && data.risk_score > 0.3) {
+          // Elevated but not anomalous — soft insight for the AI status card
+          setLatestInsight({
+            riskScore: data.risk_score,
+            explanations: data.explanations || [],
+          });
         }
       })
       .catch(() => {
@@ -144,5 +151,6 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
     resetEscalation, // call after auto-creating the alert
     enabled: !!AI_SERVICE_URL,
     learning,       // true during the 7-day learning period (alerts suppressed)
+    latestInsight,  // null or { riskScore, explanations } for elevated-but-safe readings
   };
 }

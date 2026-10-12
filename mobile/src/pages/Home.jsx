@@ -28,6 +28,9 @@ import { useAnomalyDetection } from "../hooks/useAnomalyDetection";
 import { useCheckIn } from "../hooks/useCheckIn";
 import { ZONE_TYPES, getZoneIconHtml, getZoneTypeLabel, getZoneIconSvgHtml } from "../utils/safeZoneTypes";
 import { sendNotification } from "../utils/notify";
+import { usePlaceDetection } from "../hooks/usePlaceDetection";
+import AiStatusCard from "../components/AiStatusCard";
+import PlaceSuggestionCard from "../components/PlaceSuggestionCard";
 import "./Home.css";
 
 // Pulsing blue dot for current user (matches Map tab style)
@@ -82,11 +85,15 @@ export default function Home() {
   const {
     anomalyAlert, escalate, countdown: aiCountdown,
     confirmSafe, resetEscalation, enabled: aiEnabled, learning: aiLearning,
+    latestInsight: aiLatestInsight,
   } = useAnomalyDetection(user, family?.sharedSafeZones || []);
   const {
     checkIn, graceActive, graceCountdown, remaining,
     setCheckIn: startCheckIn, cancelCheckIn, confirmSafe: confirmCheckInSafe,
   } = useCheckIn(user);
+  const {
+    detectedPlace, dismissPlace, savePlaceAsZone, saving: placeSaving,
+  } = usePlaceDetection(user);
   const [checkInDuration, setCheckInDuration] = useState(null);
   const [checkInNote, setCheckInNote] = useState("");
   const [showCreateFamily, setShowCreateFamily] = useState(false);
@@ -942,22 +949,17 @@ export default function Home() {
         )
       )}
 
-      {/* AI LEARNING PERIOD INDICATOR */}
-      {aiLearning && user.role !== "agency_staff" && (
-        <section className="home-card ai-learning-card">
-          <div className="ai-learning-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ai-learning-icon">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4m0-4h.01" />
-            </svg>
-            <h2 className="card-title ai-learning-title">AI is Learning</h2>
-          </div>
-          <p className="card-detail">
-            SafeTrace AI is studying your movement patterns. Anomaly alerts will
-            activate automatically after the learning period.
-          </p>
-        </section>
-      )}
+      {/* AI STATUS CARD (learning progress / active monitoring) */}
+      <AiStatusCard user={user} latestInsight={aiLatestInsight} />
+
+      {/* PLACE SUGGESTION (AI detected a stop at an unknown location) */}
+      <PlaceSuggestionCard
+        detectedPlace={detectedPlace}
+        onSave={savePlaceAsZone}
+        onDismiss={dismissPlace}
+        saving={placeSaving}
+        hasFamilyId={!!user.familyId}
+      />
 
       {/* AI ANOMALY CHECK-IN PROMPT */}
       {anomalyAlert && !escalate && (

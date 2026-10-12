@@ -1,0 +1,129 @@
+/* ===== AI Status Card — shared styles ===== */
+.ai-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ai-status-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.ai-status-icon-wrap {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ai-status-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ai-status-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+/* ===== Learning mode ===== */
+.ai-status-learning {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.18);
+}
+
+.ai-status-learning .ai-status-icon-wrap {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
+.ai-learning-subtitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin: -0.2rem 0 0;
+}
+
+/* Progress bar */
+.ai-progress-track {
+  height: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ai-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* Stats row */
+.ai-stats-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ai-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(59, 130, 246, 0.08);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+}
+
+.ai-stat-pill svg {
+  opacity: 0.7;
+}
+
+/* Milestone */
+.ai-milestone {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-style: italic;
+  padding-left: 0.1rem;
+}
+
+/* ===== Active mode (post-learning) ===== */
+.ai-status-active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(34, 197, 94, 0.02));
+  box-shadow: 0 0 0 1.5px rgba(34, 197, 94, 0.18);
+}
+
+.ai-status-active .ai-status-icon-wrap {
+  background: var(--color-safe-light);
+  color: var(--color-safe);
+}
+
+.ai-active-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-safe);
+  background: var(--color-safe-light);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+}
+
+.ai-status-insight {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.ai-status-insight.ai-status-calm {
+  color: var(--color-safe-hover);
+}

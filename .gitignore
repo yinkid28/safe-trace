@@ -59,6 +59,9 @@ mobile/ios/
 dashboard/node_modules/
 dashboard/dist/
 
+# Firebase
+firebase/node_modules/
+
 # Claude Code
 .claude/
 

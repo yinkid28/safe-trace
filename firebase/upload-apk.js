@@ -14,6 +14,14 @@ const clientSecret = config.tokens.client_secret || "j9iVZfS8kkCEFUPaAeJV0sAi";
 const BUCKET = "safetrace-ab950.firebasestorage.app";
 const OBJECT_PATH = "downloads/SafeTrace.apk";
 const APK_PATH = path.resolve(__dirname, "../mobile/android/app/build/outputs/apk/debug/app-debug.apk");
+const PROJECT_ID = "safetrace-ab950";
+
+// Read current version from source
+const versionFile = fs.readFileSync(
+  path.resolve(__dirname, "../mobile/src/config/version.js"),
+  "utf8"
+);
+const APP_VERSION = versionFile.match(/APP_VERSION\s*=\s*"([^"]+)"/)?.[1] || "unknown";
 
 function getAccessToken() {
   return new Promise((resolve, reject) => {
@@ -77,12 +85,53 @@ function uploadFile(accessToken) {
   });
 }
 
+function updateFirestoreVersion(accessToken, downloadUrl) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      fields: {
+        latestVersion: { stringValue: APP_VERSION },
+        downloadUrl: { stringValue: downloadUrl },
+        updateMessage: { stringValue: "A new version of SafeTrace is available with AI improvements." },
+        required: { booleanValue: false },
+      },
+    });
+    const req = https.request({
+      hostname: "firestore.googleapis.com",
+      path: `/v1/projects/${PROJECT_ID}/databases/(default)/documents/config/app`,
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        if (res.statusCode === 200) {
+          console.log(`Firestore config/app updated: latestVersion = ${APP_VERSION}`);
+          resolve();
+        } else {
+          reject(new Error(`Firestore update error ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 (async () => {
   try {
+    console.log(`Version: ${APP_VERSION}`);
     console.log("Getting access token...");
     const token = await getAccessToken();
     console.log("Uploading APK to Firebase Storage...");
-    await uploadFile(token);
+    const downloadUrl = await uploadFile(token);
+    console.log("Updating Firestore config/app...");
+    await updateFirestoreVersion(token, downloadUrl);
+    console.log("Done! Users on older versions will see the update prompt.");
   } catch (err) {
     console.error("Failed:", err.message);
     process.exit(1);
