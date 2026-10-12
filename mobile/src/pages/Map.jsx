@@ -155,7 +155,18 @@ export default function FamilyMap() {
   }, [user?.familyId]);
 
   const currentUserPos = position ? [position.lat, position.lng] : null;
-  const defaultCenter = currentUserPos || [6.5095, 3.3810];
+
+  // Compute a meaningful map center: user position > first family member > first safe zone
+  // Avoids centering on a hardcoded default when no location data is available
+  const getMapCenter = () => {
+    if (currentUserPos) return currentUserPos;
+    const firstMemberPos = familyMembers.find((m) => m.lastLocation?.lat && m.lastLocation?.lng);
+    if (firstMemberPos) return [firstMemberPos.lastLocation.lat, firstMemberPos.lastLocation.lng];
+    const firstZone = (user.safeZones || [])[0] || familySharedZones[0];
+    if (firstZone?.lat && firstZone?.lng) return [firstZone.lat, firstZone.lng];
+    return [6.5095, 3.3810]; // last resort fallback — only used when absolutely no data exists
+  };
+  const defaultCenter = getMapCenter();
 
   const getMemberPosition = (m) =>
     m.lastLocation?.lat && m.lastLocation?.lng
@@ -221,22 +232,32 @@ export default function FamilyMap() {
     return (
       <div className="map-page-container">
         <div className="leaflet-map-wrapper">
-          <MapContainer center={defaultCenter} zoom={15} scrollWheelZoom={true} className="family-route-map">
-            <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
-            {currentUserPos && (
-              <Marker position={currentUserPos} icon={userIcon}>
-                <Popup><strong>You</strong></Popup>
-              </Marker>
-            )}
-          </MapContainer>
+          {currentUserPos ? (
+            <>
+              <MapContainer center={currentUserPos} zoom={15} scrollWheelZoom={true} className="family-route-map">
+                <TileLayer attribution={TILE_ATTR} url={TILE_URL} />
+                <Marker position={currentUserPos} icon={userIcon}>
+                  <Popup><strong>You</strong></Popup>
+                </Marker>
+              </MapContainer>
 
-          {currentUserPos && (
-            <div className="map-floating-actions">
-              <button className="map-floating-btn" onClick={() => setSelectedCenter(currentUserPos)} aria-label="My location">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
-                </svg>
-              </button>
+              <div className="map-floating-actions">
+                <button className="map-floating-btn" onClick={() => setSelectedCenter(currentUserPos)} aria-label="My location">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+                  </svg>
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="map-no-location-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                <circle cx="12" cy="10" r="3" />
+                <line x1="2" y1="2" x2="22" y2="22" />
+              </svg>
+              <p className="no-location-text">Unable to detect your location</p>
+              <span className="no-location-hint">Please enable location services to see the map</span>
             </div>
           )}
         </div>
@@ -377,6 +398,18 @@ export default function FamilyMap() {
             </button>
           </div>
         )}
+
+        {/* Location unavailable banner (overlaid on map) */}
+        {!currentUserPos && (
+          <div className="map-no-location-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
+              <line x1="2" y1="2" x2="22" y2="22" />
+            </svg>
+            <span>Unable to detect your location</span>
+          </div>
+        )}
       </div>
 
       {/* Family Circle section */}
@@ -404,7 +437,7 @@ export default function FamilyMap() {
               <div className="member-text">
                 <span className="member-name-text">{user.name} <span className="you-badge">(You)</span></span>
                 <span className="member-sub-text">
-                  {currentUserPos ? `${position?.speed || 0} km/h` : "No GPS"} &middot; Now
+                  {currentUserPos ? `${position?.speed || 0} km/h` : "Location unavailable"} &middot; Now
                 </span>
               </div>
             </div>

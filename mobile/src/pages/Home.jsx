@@ -81,7 +81,7 @@ export default function Home() {
   const [family, setFamily] = useState(null);
   const {
     anomalyAlert, escalate, countdown: aiCountdown,
-    confirmSafe, resetEscalation, enabled: aiEnabled,
+    confirmSafe, resetEscalation, enabled: aiEnabled, learning: aiLearning,
   } = useAnomalyDetection(user, family?.sharedSafeZones || []);
   const {
     checkIn, graceActive, graceCountdown, remaining,
@@ -159,7 +159,7 @@ export default function Home() {
 
   // Admin: listen for pending join requests
   useEffect(() => {
-    if (!user?.familyId || user.role !== "family_admin") {
+    if (!user?.familyId || (user.role !== "family_admin" && user.role !== "platform_admin")) {
       setPendingRequests([]);
       return;
     }
@@ -942,6 +942,23 @@ export default function Home() {
         )
       )}
 
+      {/* AI LEARNING PERIOD INDICATOR */}
+      {aiLearning && user.role !== "agency_staff" && (
+        <section className="home-card ai-learning-card">
+          <div className="ai-learning-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ai-learning-icon">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4m0-4h.01" />
+            </svg>
+            <h2 className="card-title ai-learning-title">AI is Learning</h2>
+          </div>
+          <p className="card-detail">
+            SafeTrace AI is studying your movement patterns. Anomaly alerts will
+            activate automatically after the learning period.
+          </p>
+        </section>
+      )}
+
       {/* AI ANOMALY CHECK-IN PROMPT */}
       {anomalyAlert && !escalate && (
         <section className="home-card anomaly-checkin">
@@ -1110,7 +1127,7 @@ export default function Home() {
           </div>
 
           {/* Admin: Pending Join Requests */}
-          {user.role === "family_admin" && pendingRequests.length > 0 && (
+          {(user.role === "family_admin" || user.role === "platform_admin") && pendingRequests.length > 0 && (
             <div className="join-requests-section">
               <h3 className="members-list-title">Pending Join Requests</h3>
               {pendingRequests.map((req) => (
@@ -1464,9 +1481,11 @@ export default function Home() {
           <span className="account-value role-badge">
             {user.role === "family_admin"
               ? "Family Admin"
-              : user.role === "agency_staff"
-                ? "Agency Staff"
-                : "Member"}
+              : user.role === "platform_admin"
+                ? "Platform Admin"
+                : user.role === "agency_staff"
+                  ? "Agency Staff"
+                  : "Member"}
           </span>
         </div>
       </section>

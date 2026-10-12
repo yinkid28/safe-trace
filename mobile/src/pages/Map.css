@@ -418,6 +418,67 @@
   line-height: 1.5;
 }
 
+/* ===== Location unavailable — full placeholder (no-family, no GPS) ===== */
+.map-no-location-placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3f0ed, #e8e4e0);
+  gap: 0.5rem;
+  padding: 2rem;
+}
+
+.map-no-location-placeholder svg {
+  width: 3rem;
+  height: 3rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.no-location-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.no-location-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ===== Location unavailable — banner overlay (family view, no user GPS) ===== */
+.map-no-location-banner {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.map-no-location-banner svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 /* ===== Custom map markers ===== */
 
 /* Current user: pulsing blue dot */

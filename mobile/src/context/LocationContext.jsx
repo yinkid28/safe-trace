@@ -8,6 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 export const LocationContext = createContext(null);
 
 const POLL_INTERVAL_MS = 60_000; // 60 seconds (browser fallback)
+const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes — keeps phoneStatus fresh even when stationary
 const DISTANCE_FILTER_M = 30; // Native: update every 30 meters of movement
 export const LAGOS_DEFAULT = { lat: 6.5158, lng: 3.3775 };
 
@@ -20,6 +21,7 @@ export function LocationProvider({ children }) {
   const [permissionStatus, setPermissionStatus] = useState("prompt");
   const [error, setError] = useState(null);
   const intervalRef = useRef(null);
+  const heartbeatRef = useRef(null);
   const bgWatcherIdRef = useRef(null);
   const userRef = useRef(user);
   const lastHistoryWriteRef = useRef(0);
@@ -189,6 +191,20 @@ export function LocationProvider({ children }) {
     });
   }, []);
 
+  // Heartbeat: write lastSeen + phoneStatus every 2 minutes so the user
+  // appears online even when stationary (native distance filter blocks
+  // location updates if the device hasn't moved 30m).
+  const sendHeartbeat = useCallback(() => {
+    const currentUser = userRef.current;
+    if (!currentUser?.uid) return;
+    updateDoc(doc(db, "users", currentUser.uid), {
+      lastSeen: serverTimestamp(),
+      phoneStatus: "online",
+    }).catch(() => {
+      // Best effort
+    });
+  }, []);
+
   // Auto-start when user is authenticated
   useEffect(() => {
     if (!user) {
@@ -201,15 +217,27 @@ export function LocationProvider({ children }) {
     let cancelled = false;
 
     // --- Offline detection listeners ---
+    // Only mark offline on genuine signals: network loss and page unload.
+    // visibilitychange ("hidden") is NOT used because on Android it fires
+    // when switching apps, pulling down the notification shade, or briefly
+    // locking the screen — all cases where the app is still running.
     const handleOffline = () => markOffline();
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden") markOffline();
-    };
     const handlePageHide = () => markOffline();
 
+    // When the app returns to foreground, immediately send a heartbeat
+    // so the user's status flips back to "online" without waiting for
+    // the next scheduled heartbeat or location update.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") sendHeartbeat();
+    };
+
     window.addEventListener("offline", handleOffline);
-    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Start the heartbeat interval
+    sendHeartbeat();
+    heartbeatRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
     async function initLocation() {
       try {
@@ -251,8 +279,12 @@ export function LocationProvider({ children }) {
     return () => {
       cancelled = true;
       window.removeEventListener("offline", handleOffline);
-      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
       stopTracking();
     };
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -261,6 +293,7 @@ export function LocationProvider({ children }) {
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     };
   }, []);
 

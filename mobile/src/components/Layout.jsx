@@ -8,6 +8,7 @@ import { useOfflineDetection } from "../hooks/useOfflineDetection";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useWhereIsChat } from "../hooks/useWhereIsChat";
 import ChatOverlay from "./ChatOverlay";
+import UpdateBanner from "./UpdateBanner";
 import "./Layout.css";
 
 export default function Layout() {
@@ -29,6 +30,7 @@ export default function Layout() {
 
   return (
     <div className="layout">
+      <UpdateBanner />
       <main className="layout-content">
         <Outlet />
       </main>

@@ -5,6 +5,25 @@ import { useLocation } from "./useLocation";
 const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || "";
 const SCORE_EVERY_N_POINTS = 5; // Score every 5 new GPS points
 const CHECKIN_TIMEOUT_MS = 60_000; // 60 seconds to respond before auto-escalation
+const LEARNING_PERIOD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Check if the user's account is within the learning period.
+ * During this period the AI collects data but suppresses alerts.
+ */
+function isInLearningPeriod(user) {
+  if (!user?.createdAt) return false;
+  const createdMs =
+    typeof user.createdAt.toMillis === "function"
+      ? user.createdAt.toMillis()
+      : user.createdAt.toDate
+        ? user.createdAt.toDate().getTime()
+        : typeof user.createdAt === "number"
+          ? user.createdAt
+          : 0;
+  if (!createdMs) return false;
+  return Date.now() - createdMs < LEARNING_PERIOD_MS;
+}
 
 /**
  * Connects the GPS trajectory buffer to the AI anomaly detection service.
@@ -23,6 +42,7 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
   const lastScoredCount = useRef(0);
   const countdownRef = useRef(null);
   const intervalRef = useRef(null);
+  const learning = isInLearningPeriod(user);
 
   // Accumulate GPS points as they arrive
   useEffect(() => {
@@ -59,7 +79,9 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
         return res.json();
       })
       .then((data) => {
-        if (data.is_anomaly) {
+        // During the learning period, the AI runs silently to collect
+        // baseline data but does not trigger alerts or countdowns.
+        if (data.is_anomaly && !learning) {
           setAnomalyAlert({
             riskScore: data.risk_score,
             explanations: data.explanations || [],
@@ -121,5 +143,6 @@ export function useAnomalyDetection(user, sharedSafeZones = []) {
     confirmSafe,    // call to dismiss
     resetEscalation, // call after auto-creating the alert
     enabled: !!AI_SERVICE_URL,
+    learning,       // true during the 7-day learning period (alerts suppressed)
   };
 }

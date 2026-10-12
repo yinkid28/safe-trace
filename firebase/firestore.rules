@@ -209,6 +209,16 @@ service cloud.firestore {
         && resource.data.pairedUserId == request.auth.uid;
     }
 
+    // --- App Config (read-only) ---
+
+    match /config/{configId} {
+      // Any authenticated user can read app config (version check, etc.)
+      allow read: if isSignedIn();
+
+      // Only platform admins can write config
+      allow write: if isSignedIn() && isPlatformAdmin();
+    }
+
     // --- Location History ---
 
     match /locationHistory/{historyId} {
