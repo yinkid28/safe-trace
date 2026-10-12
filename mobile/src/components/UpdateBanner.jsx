@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { db } from "../config/firebase";
 import { APP_VERSION } from "../config/version";
 import "./UpdateBanner.css";
@@ -49,9 +50,12 @@ export default function UpdateBanner() {
     // Only hides for this session — will show again next time the app is opened
   };
 
-  const handleDownload = () => {
-    if (update.downloadUrl) {
-      window.open(update.downloadUrl, "_system");
+  const handleDownload = async () => {
+    if (!update.downloadUrl) return;
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url: update.downloadUrl });
+    } else {
+      window.open(update.downloadUrl, "_blank");
     }
   };
 
