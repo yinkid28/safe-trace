@@ -3,6 +3,8 @@
 Endpoints:
     POST /api/v1/predict             — Score a GPS trajectory for anomalies.
     POST /api/v1/hardware/location   — Receive a GPS ping from a hardware tracker.
+    GET  /api/v1/hardware/monitor    — Live browser monitor for hardware data.
+    GET  /api/v1/hardware/pings      — Recent pings as JSON (used by monitor).
     POST /api/v1/notify              — Send push notifications for alerts.
     GET  /api/v1/health              — Health check + model status.
 """
