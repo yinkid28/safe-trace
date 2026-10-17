@@ -366,6 +366,34 @@
   z-index: 1;
 }
 
+.journey-map-placeholder {
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-alt, #1a1f25);
+  border-radius: var(--radius);
+  color: var(--color-text-tertiary);
+  gap: 0.5rem;
+}
+
+.journey-map-placeholder svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.5;
+}
+
+.journey-map-placeholder p {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.journey-map-placeholder span {
+  font-size: 0.8rem;
+}
+
 /* Muted tile layer — Uber-style clean base (matches Map tab) */
 .journey-map .leaflet-tile-pane {
   filter: saturate(0.25) brightness(1.06) contrast(0.92);

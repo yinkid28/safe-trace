@@ -350,11 +350,11 @@ export default function FamilyMap() {
               <Fragment key={`zone-${i}`}>
                 <Circle
                   center={[zone.lat, zone.lng]}
-                  radius={200}
+                  radius={100}
                   pathOptions={{ color: "#22c55e", fillColor: "#22c55e", fillOpacity: 0.12, weight: 2, opacity: 0.6 }}
                 />
                 <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, false)}>
-                  <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (200m)</Popup>
+                  <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (100m)</Popup>
                 </Marker>
               </Fragment>
             ) : null
@@ -366,11 +366,11 @@ export default function FamilyMap() {
               <Fragment key={`shared-zone-${i}`}>
                 <Circle
                   center={[zone.lat, zone.lng]}
-                  radius={200}
+                  radius={100}
                   pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.08, weight: 2, opacity: 0.5, dashArray: "5, 5" }}
                 />
                 <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, true)}>
-                  <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (200m)</Popup>
+                  <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (100m)</Popup>
                 </Marker>
               </Fragment>
             ) : null

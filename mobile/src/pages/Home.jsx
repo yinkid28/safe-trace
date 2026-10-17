@@ -62,13 +62,6 @@ function generateJoinCode() {
   return `${l1}${l2}${l3}-${num}`;
 }
 
-const SIMULATED_ROUTE = [
-  { lat: 6.5095, lng: 3.3810, label: "Sabo, Yaba", speed: 15, heading: 45 },
-  { lat: 6.5158, lng: 3.3775, label: "Yabatech Campus", speed: 22, heading: 120 },
-  { lat: 6.5190, lng: 3.3680, label: "Tejuosho Market", speed: 45, heading: 270 },
-  { lat: 6.5250, lng: 3.3700, label: "Jibowu", speed: 30, heading: 90 },
-  { lat: 6.5158, lng: 3.3985, label: "UNILAG", speed: 12, heading: 180 },
-];
 
 // Component to dynamically pan map to current location
 function ChangeMapView({ center }) {
@@ -130,7 +123,6 @@ export default function Home() {
   const [currentAlertId, setCurrentAlertId] = useState(null);
   const [isAlertActive, setIsAlertActive] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
-  const [currentSimIndex, setCurrentSimIndex] = useState(0);
   const [journeyPath, setJourneyPath] = useState([]); // List of lat/lng recorded during active tracking
 
   const trackingInterval = useRef(null);
@@ -204,7 +196,7 @@ export default function Home() {
 
     const loc = position
       ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
-      : { lat: SIMULATED_ROUTE[0].lat, lng: SIMULATED_ROUTE[0].lng, speed: 0, heading: 0 };
+      : null;
 
     const alertRef = doc(collection(db, "alerts"));
     setDoc(alertRef, {
@@ -215,14 +207,14 @@ export default function Home() {
       type: "ai_anomaly",
       status: "new",
       createdAt: new Date(),
-      lastKnownLocation: loc,
-      locationName: `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`,
+      lastKnownLocation: loc || { lat: 0, lng: 0, speed: 0, heading: 0 },
+      locationName: loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : "Location unavailable",
       riskScore: anomalyAlert.riskScore,
       explanations: anomalyAlert.explanations,
       evidenceUrls: [],
       escalated: true,
       escalatedAt: new Date(),
-      trajectory: [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }],
+      trajectory: loc ? [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }] : [],
       timeline: [
         { event: "AI flagged anomalous movement", timestamp: new Date() },
         { event: "User did not respond to check-in", timestamp: new Date() },
@@ -236,7 +228,7 @@ export default function Home() {
         userName: user.name,
         familyId: user.familyId || "no_family",
         agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
-        locationName: `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`,
+        locationName: loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : "Location unavailable",
       });
       resetEscalation();
     }).catch((err) => {
@@ -409,11 +401,9 @@ export default function Home() {
   const triggerPanicAlert = async () => {
     setIsAlertActive(true);
 
-    // Use real GPS if available, fall back to simulated coordinates (but zero speed/heading)
-    const fallbackLoc = SIMULATED_ROUTE[0];
     const loc = position
       ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
-      : { lat: fallbackLoc.lat, lng: fallbackLoc.lng, speed: 0, heading: 0 };
+      : null;
 
     const timelineEvents = [
       { event: "Panic triggered", timestamp: new Date() },
@@ -450,14 +440,14 @@ export default function Home() {
         type: "panic",
         status: "new",
         createdAt: new Date(),
-        lastKnownLocation: loc,
-        locationName: position ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : fallbackLoc.label,
+        lastKnownLocation: loc || { lat: 0, lng: 0, speed: 0, heading: 0 },
+        locationName: loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : "Location unavailable",
         riskScore: 1.0,
         explanations: ["Manual panic button triggered by user"],
         evidenceUrls: [],
         escalated: true,
         escalatedAt: new Date(),
-        trajectory: [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }],
+        trajectory: loc ? [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }] : [],
         timeline: timelineEvents,
         notes: [],
       };
@@ -492,43 +482,34 @@ export default function Home() {
       }
 
       // Start location tracking
-      setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
-      startTracking(alertId, 0);
+      if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
+      startTracking(alertId);
     } catch (err) {
       console.error("SOS Trigger Error:", err);
       setIsAlertActive(false);
     }
   };
 
-  // Safe Tracking / Simulated Journey Methods
-  const startTracking = (alertId = null, startIdx = 0) => {
+  // Live Journey Tracking (real GPS only — no simulated data)
+  const startTracking = (alertId = null) => {
     setIsTracking(true);
-    let simIdx = startIdx;
-    setCurrentSimIndex(simIdx);
 
-    // Use real GPS if available for initial point
     const gps = positionRef.current;
-    const initialPt = gps || SIMULATED_ROUTE[simIdx];
-    const path = [{ lat: initialPt.lat, lng: initialPt.lng }];
-    setJourneyPath(path);
+    if (gps) {
+      setJourneyPath([{ lat: gps.lat, lng: gps.lng }]);
+    }
 
     trackingInterval.current = setInterval(async () => {
-      // Prefer real GPS; fall back to simulated route
       const currentGps = positionRef.current;
-      let loc;
-      if (currentGps) {
-        loc = {
-          lat: currentGps.lat,
-          lng: currentGps.lng,
-          speed: currentGps.speed || 0,
-          heading: currentGps.heading || 0,
-          label: `${currentGps.lat.toFixed(4)}, ${currentGps.lng.toFixed(4)}`,
-        };
-      } else {
-        simIdx = (simIdx + 1) % SIMULATED_ROUTE.length;
-        setCurrentSimIndex(simIdx);
-        loc = SIMULATED_ROUTE[simIdx];
-      }
+      if (!currentGps) return; // No GPS — skip this tick
+
+      const loc = {
+        lat: currentGps.lat,
+        lng: currentGps.lng,
+        speed: currentGps.speed || 0,
+        heading: currentGps.heading || 0,
+        label: `${currentGps.lat.toFixed(4)}, ${currentGps.lng.toFixed(4)}`,
+      };
 
       const newCoord = { lat: loc.lat, lng: loc.lng };
       setJourneyPath((prev) => [...prev, newCoord]);
@@ -622,11 +603,10 @@ export default function Home() {
     }
   };
 
-  // Use real GPS for display when available, fall back to simulated
-  const simPosition = SIMULATED_ROUTE[currentSimIndex];
+  // Active tracking position — null when no GPS
   const activePosition = position
     ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0, label: `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` }
-    : simPosition;
+    : null;
 
   const handleJoinFamily = async (e) => {
     e.preventDefault();
@@ -997,20 +977,21 @@ export default function Home() {
           <div className="telemetry-grid">
             <div className="tel-card">
               <span className="tel-label">Location</span>
-              <span className="tel-value">{activePosition.label}</span>
+              <span className="tel-value">{activePosition ? activePosition.label : "Acquiring GPS..."}</span>
             </div>
             <div className="tel-card">
               <span className="tel-label">Current Speed</span>
-              <span className="tel-value">{activePosition.speed} km/h</span>
+              <span className="tel-value">{activePosition ? `${activePosition.speed} km/h` : "--"}</span>
             </div>
             <div className="tel-card">
               <span className="tel-label">Heading</span>
-              <span className="tel-value">{activePosition.heading}°</span>
+              <span className="tel-value">{activePosition ? `${activePosition.heading}°` : "--"}</span>
             </div>
           </div>
 
           {/* Leaflet Interactive Route Map */}
           <div className="map-wrapper">
+            {activePosition ? (
             <MapContainer
               center={[activePosition.lat, activePosition.lng]}
               zoom={15}
@@ -1042,11 +1023,11 @@ export default function Home() {
                   <Fragment key={`zone-${i}`}>
                     <Circle
                       center={[zone.lat, zone.lng]}
-                      radius={200}
+                      radius={100}
                       pathOptions={{ color: "#22c55e", fillColor: "#22c55e", fillOpacity: 0.12, weight: 2, opacity: 0.6 }}
                     />
                     <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, false)}>
-                      <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (200m)</Popup>
+                      <Popup><strong>{zone.label || `Zone ${i + 1}`}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Safe Zone (100m)</Popup>
                     </Marker>
                   </Fragment>
                 ) : null
@@ -1060,16 +1041,27 @@ export default function Home() {
                     <Fragment key={`shared-zone-${i}`}>
                       <Circle
                         center={[zone.lat, zone.lng]}
-                        radius={200}
+                        radius={100}
                         pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.08, weight: 2, opacity: 0.5, dashArray: "5, 5" }}
                       />
                       <Marker position={[zone.lat, zone.lng]} icon={createZoneIcon(zone.type, true)}>
-                        <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (200m)</Popup>
+                        <Popup><strong>{zone.label}</strong><br />{getZoneTypeLabel(zone.type)} &middot; Family Shared Zone (100m)</Popup>
                       </Marker>
                     </Fragment>
                   ) : null
                 )}
             </MapContainer>
+            ) : (
+              <div className="journey-map-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                  <line x1="2" y1="2" x2="22" y2="22" />
+                </svg>
+                <p>Waiting for GPS signal...</p>
+                <span>The map will appear once your location is detected</span>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -1081,7 +1073,7 @@ export default function Home() {
             <h3 className="toggle-title">Safe Journey Monitoring</h3>
             <p className="card-detail">Enable real-time location routing and AI safety updates.</p>
           </div>
-          <button className="btn-primary" onClick={() => startTracking(null, 0)}>
+          <button className="btn-primary" onClick={() => startTracking(null)}>
             Start Monitoring
           </button>
         </section>
