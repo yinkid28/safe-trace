@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
+import { Filesystem, Directory } from "@capacitor/filesystem";
 import { db } from "../config/firebase";
 import { APP_VERSION } from "../config/version";
 import "./UpdateBanner.css";
@@ -9,13 +9,15 @@ import "./UpdateBanner.css";
 /**
  * Checks Firestore for a newer app version and shows an update prompt.
  * Only shows on native (Android) since web users always get the latest build.
+ * Downloads the APK directly and opens the Android installer.
  */
 export default function UpdateBanner() {
   const [update, setUpdate] = useState(null);
   const [dismissed, setDismissed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Only check on native — web always serves the latest build
     if (!Capacitor.isNativePlatform()) return;
 
     async function checkForUpdate() {
@@ -45,17 +47,62 @@ export default function UpdateBanner() {
   if (!update || dismissed) return null;
 
   const handleDismiss = () => {
-    if (update.required) return; // Can't dismiss required updates
+    if (update.required) return;
     setDismissed(true);
-    // Only hides for this session — will show again next time the app is opened
   };
 
   const handleDownload = async () => {
-    if (!update.downloadUrl) return;
-    if (Capacitor.isNativePlatform()) {
-      await Browser.open({ url: update.downloadUrl });
-    } else {
-      window.open(update.downloadUrl, "_blank");
+    if (!update.downloadUrl || downloading) return;
+
+    setDownloading(true);
+    setProgress(0);
+
+    try {
+      // Download APK as blob
+      const response = await fetch(update.downloadUrl);
+      const contentLength = response.headers.get("content-length");
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) setProgress(Math.round((received / total) * 100));
+      }
+
+      // Convert chunks to base64
+      const blob = new Blob(chunks);
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(",")[1]);
+        reader.readAsDataURL(blob);
+      });
+
+      // Save to device storage
+      const fileName = `SafeTrace-v${update.version}.apk`;
+      const saved = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+      });
+
+      // Open the APK to trigger Android installer
+      const fileUri = saved.uri;
+      // Use Android intent to install APK via the WebView
+      window.open(fileUri, "_system");
+
+      setProgress(100);
+    } catch (err) {
+      console.error("Download failed:", err);
+      // Fallback: open in browser
+      window.open(update.downloadUrl, "_system");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -72,14 +119,26 @@ export default function UpdateBanner() {
         <h3 className="update-title">Update Available</h3>
         <p className="update-message">{update.message}</p>
         <p className="update-version">v{APP_VERSION} &rarr; v{update.version}</p>
+
+        {downloading && (
+          <div className="update-progress-bar">
+            <div className="update-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+        )}
+
         <div className="update-actions">
-          {!update.required && (
+          {!update.required && !downloading && (
             <button type="button" className="update-btn-later" onClick={handleDismiss}>
               Later
             </button>
           )}
-          <button type="button" className="update-btn-download" onClick={handleDownload}>
-            Download Update
+          <button
+            type="button"
+            className="update-btn-download"
+            onClick={handleDownload}
+            disabled={downloading}
+          >
+            {downloading ? `Downloading... ${progress}%` : "Download & Install"}
           </button>
         </div>
       </div>

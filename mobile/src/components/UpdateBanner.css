@@ -87,6 +87,25 @@
   box-shadow: var(--shadow-fab);
 }
 
+.update-btn-download:disabled {
+  opacity: 0.8;
+}
+
+.update-progress-bar {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.update-progress-fill {
+  height: 100%;
+  background: var(--color-primary-gradient);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
 @keyframes updateFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
