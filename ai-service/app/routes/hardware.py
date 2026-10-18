@@ -13,11 +13,15 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
+import logging
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.firebase import get_db
 from app.schemas import HardwareLocationRequest, HardwareLocationResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/hardware", tags=["hardware"])
 
@@ -29,6 +33,91 @@ def _verify_device_key(stored_hash: str, stored_salt: str, provided_key: str) ->
     """Verify a device key against its stored salted SHA-256 hash."""
     computed = hashlib.sha256((stored_salt + provided_key).encode()).hexdigest()
     return computed == stored_hash
+
+
+DEFAULT_AGENCY_ID = "agency_yaba"
+
+
+def _handle_sos(db, req, user_id: str, user_ref, now):
+    """Create a panic alert and send push notifications for a hardware SOS."""
+    from firebase_admin import messaging
+    from app.routes.notifications import _collect_tokens
+
+    # Read user doc for name, familyId, agencyId resolution
+    user_snap = user_ref.get()
+    user_data = user_snap.to_dict() if user_snap.exists else {}
+    user_name = user_data.get("name", "Unknown")
+    user_family_id = user_data.get("familyId") or "no_family"
+
+    # Resolve agencyId: family → user → fallback
+    agency_id = ""
+    if user_family_id and user_family_id != "no_family":
+        fam_snap = db.collection("families").document(user_family_id).get()
+        if fam_snap.exists:
+            agency_id = fam_snap.to_dict().get("agencyId", "")
+    if not agency_id:
+        agency_id = user_data.get("directAgencyId") or DEFAULT_AGENCY_ID
+
+    location_name = f"{req.lat:.4f}, {req.lon:.4f}"
+
+    # Create alert document
+    alert_ref = db.collection("alerts").document()
+    alert_ref.set({
+        "userId": user_id,
+        "userName": user_name,
+        "familyId": user_family_id,
+        "agencyId": agency_id,
+        "type": "panic",
+        "status": "new",
+        "createdAt": now,
+        "lastKnownLocation": {
+            "lat": req.lat,
+            "lng": req.lon,
+            "speed": req.speed,
+            "heading": None,
+        },
+        "locationName": location_name,
+        "riskScore": 1.0,
+        "explanations": ["Hardware SOS button triggered"],
+        "evidenceUrls": [],
+        "escalated": True,
+        "escalatedAt": now,
+        "trajectory": [{
+            "lat": req.lat,
+            "lng": req.lon,
+            "timestamp": now.isoformat(),
+        }],
+        "timeline": [{
+            "event": "Hardware SOS triggered",
+            "timestamp": now,
+        }],
+        "notes": [],
+    })
+
+    logger.info("Hardware SOS alert created: %s for user %s", alert_ref.id, user_id)
+
+    # Send push notifications (fire and forget)
+    try:
+        tokens = _collect_tokens(db, user_family_id, agency_id)
+        if tokens:
+            msg = messaging.MulticastMessage(
+                tokens=tokens,
+                notification=messaging.Notification(
+                    title="EMERGENCY SOS",
+                    body=f"{user_name} triggered an emergency alert near {location_name}",
+                ),
+                data={"alertId": alert_ref.id, "alertType": "panic"},
+                android=messaging.AndroidConfig(
+                    priority="high",
+                    notification=messaging.AndroidNotification(
+                        sound="default", priority="max",
+                    ),
+                ),
+            )
+            result = messaging.send_each_for_multicast(msg)
+            logger.info("SOS notifications sent: %d ok, %d failed", result.success_count, result.failure_count)
+    except Exception as exc:
+        logger.warning("SOS notification send failed: %s", exc)
 
 
 @router.post("/location", response_model=HardwareLocationResponse)
@@ -113,8 +202,16 @@ async def receive_location(req: HardwareLocationRequest):
         "speed": req.speed,
         "sats": req.sats,
         "batt": req.batt,
+        "sos": req.sos,
         "ts": now.isoformat(),
     })
+
+    # Handle hardware SOS button press
+    if req.sos:
+        try:
+            _handle_sos(db, req, user_id, user_ref, now)
+        except Exception as exc:
+            logger.warning("Hardware SOS handling failed: %s", exc)
 
     return HardwareLocationResponse(ok=True)
 
