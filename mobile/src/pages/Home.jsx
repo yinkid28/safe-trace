@@ -405,32 +405,12 @@ export default function Home() {
       ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
       : null;
 
-    const timelineEvents = [
-      { event: "Panic triggered", timestamp: new Date() },
-    ];
-
-    // Attempt to capture evidence photo before creating the alert
-    let photoBase64 = null;
     try {
-      const photo = await Camera.getPhoto({
-        quality: 70,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Camera,
-        allowEditing: false,
-        width: 1280,
-      });
-      photoBase64 = photo.base64String;
-      timelineEvents.push({ event: "Evidence photo captured", timestamp: new Date() });
-    } catch {
-      // Camera unavailable or permission denied — continue without photo
-    }
-
-    try {
+      // 1. Create the alert FIRST — before camera, so it exists even if
+      //    the WebView reloads while the native camera is open.
       const alertRef = doc(collection(db, "alerts"));
       const alertId = alertRef.id;
       setCurrentAlertId(alertId);
-
-      timelineEvents.push({ event: "Alert escalated to agency", timestamp: new Date() });
 
       const alertData = {
         userId: user.uid,
@@ -448,12 +428,16 @@ export default function Home() {
         escalated: true,
         escalatedAt: new Date(),
         trajectory: loc ? [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }] : [],
-        timeline: timelineEvents,
+        timeline: [
+          { event: "Panic triggered", timestamp: new Date() },
+          { event: "Alert escalated to agency", timestamp: new Date() },
+        ],
         notes: [],
       };
 
       await setDoc(alertRef, alertData);
 
+      // 2. Send notifications immediately — don't wait for photo
       sendNotification({
         alertId,
         alertType: "panic",
@@ -463,10 +447,22 @@ export default function Home() {
         locationName: alertData.locationName,
       });
 
-      // Upload evidence photo to Cloud Storage if captured
-      if (photoBase64) {
-        try {
-          const byteChars = atob(photoBase64);
+      // 3. Start location tracking right away
+      if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
+      startTracking(alertId);
+
+      // 4. NOW attempt to capture evidence photo — if the WebView reloads
+      //    during camera, the alert already exists in Firestore.
+      try {
+        const photo = await Camera.getPhoto({
+          quality: 70,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Camera,
+          allowEditing: false,
+          width: 1280,
+        });
+        if (photo.base64String) {
+          const byteChars = atob(photo.base64String);
           const byteArray = new Uint8Array(byteChars.length);
           for (let i = 0; i < byteChars.length; i++) {
             byteArray[i] = byteChars.charCodeAt(i);
@@ -475,15 +471,14 @@ export default function Home() {
           const storageRef = ref(storage, `evidence/${alertId}/photo_${Date.now()}.jpg`);
           await uploadBytes(storageRef, blob);
           const url = await getDownloadURL(storageRef);
-          await updateDoc(alertRef, { evidenceUrls: arrayUnion(url) });
-        } catch {
-          // Photo upload failed — alert still exists without the image
+          await updateDoc(alertRef, {
+            evidenceUrls: arrayUnion(url),
+            timeline: arrayUnion({ event: "Evidence photo captured", timestamp: new Date() }),
+          });
         }
+      } catch {
+        // Camera unavailable or permission denied — alert still exists without photo
       }
-
-      // Start location tracking
-      if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
-      startTracking(alertId);
     } catch (err) {
       console.error("SOS Trigger Error:", err);
       setIsAlertActive(false);
