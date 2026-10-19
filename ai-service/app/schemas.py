@@ -72,7 +72,7 @@ class HardwareLocationRequest(BaseModel):
     sats: int = Field(ge=0, default=0, description="Number of GPS satellites")
     batt: float = Field(ge=0, default=0.0, description="Battery voltage")
     ts: Optional[int] = Field(default=None, gt=0, description="Unix timestamp in seconds; server timestamps if omitted")
-    sos: bool = Field(default=False, description="True when the hardware SOS button is pressed")
+    isSos: bool = Field(default=False, description="True when the hardware SOS button is pressed")
 
 
 class HardwareLocationResponse(BaseModel):

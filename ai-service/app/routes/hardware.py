@@ -202,12 +202,12 @@ async def receive_location(req: HardwareLocationRequest):
         "speed": req.speed,
         "sats": req.sats,
         "batt": req.batt,
-        "sos": req.sos,
+        "sos": req.isSos,
         "ts": now.isoformat(),
     })
 
     # Handle hardware SOS button press
-    if req.sos:
+    if req.isSos:
         try:
             _handle_sos(db, req, user_id, user_ref, now)
         except Exception as exc:
