@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
 import { db } from "../config/firebase";
 import { APP_VERSION } from "../config/version";
 import "./UpdateBanner.css";
@@ -55,16 +54,16 @@ export default function UpdateBanner() {
     setDismissed(true);
   };
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!update.downloadUrl) return;
 
-    // Open in the external system browser (Chrome) via Capacitor Browser plugin.
-    // Chrome's download manager will download the APK and the user taps the
-    // notification to install it.
-    try {
-      await Browser.open({ url: update.downloadUrl, windowName: "_system" });
-    } catch {
-      // Fallback if Browser plugin fails
+    // Use the native Android bridge to open in the REAL external browser
+    // (not Chrome Custom Tab, not WebView). SafeTraceNative is injected
+    // by MainActivity.java via addJavascriptInterface.
+    if (window.SafeTraceNative?.openExternal) {
+      window.SafeTraceNative.openExternal(update.downloadUrl);
+    } else {
+      // Fallback for web/dev — just navigate
       window.location.href = update.downloadUrl;
     }
 
