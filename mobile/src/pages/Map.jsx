@@ -95,6 +95,9 @@ export default function FamilyMap() {
   const [trailPoints, setTrailPoints] = useState([]);
   const [trailLoading, setTrailLoading] = useState(false);
 
+  // Alert detail expansion
+  const [expandedAlertId, setExpandedAlertId] = useState(null);
+
   // Subscribe to family data
   useEffect(() => {
     if (!user?.familyId) return;
@@ -592,24 +595,107 @@ export default function FamilyMap() {
             const pos = alert.lastKnownLocation
               ? [alert.lastKnownLocation.lat, alert.lastKnownLocation.lng]
               : null;
+            const isExpanded = expandedAlertId === alert.id;
+            const audioUrls = (alert.evidenceUrls || []).filter((u) => u.includes("/audio_"));
+            const photoUrls = (alert.evidenceUrls || []).filter((u) => u.includes("/photo_"));
             return (
-              <div key={alert.id} className="map-alert-item">
-                <div className="alert-item-text">
-                  <span className="alert-user-name">{alert.userName}</span>
-                  <span className="alert-details-sub">SOS near {alert.locationName || "Unknown"}</span>
-                </div>
-                <div className="alert-item-actions">
-                  {pos && (
-                    <button className="btn-locate-alert" onClick={() => setSelectedCenter(pos)}>
-                      Focus
+              <div key={alert.id} className={`map-alert-item${isExpanded ? " expanded" : ""}`}>
+                <div
+                  className="alert-item-header"
+                  onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="alert-item-text">
+                    <span className="alert-user-name">{alert.userName}</span>
+                    <span className="alert-details-sub">
+                      {alert.type === "ai_anomaly" ? "AI Anomaly" : "SOS"} near {alert.locationName || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="alert-item-actions">
+                    {pos && (
+                      <button className="btn-locate-alert" onClick={(e) => { e.stopPropagation(); setSelectedCenter(pos); }}>
+                        Focus
+                      </button>
+                    )}
+                    <button className="btn-dismiss-alert" onClick={(e) => { e.stopPropagation(); handleDismissAlert(alert.id); }} aria-label="Dismiss alert">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.85em", height: "0.85em" }}>
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
                     </button>
-                  )}
-                  <button className="btn-dismiss-alert" onClick={() => handleDismissAlert(alert.id)} aria-label="Dismiss alert">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.85em", height: "0.85em" }}>
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                  </div>
                 </div>
+
+                {isExpanded && (
+                  <div className="alert-detail-panel">
+                    {/* Explanations */}
+                    {alert.explanations?.length > 0 && (
+                      <div className="alert-detail-row">
+                        <span className="alert-detail-label">Reason</span>
+                        <span className="alert-detail-value">{alert.explanations[0]}</span>
+                      </div>
+                    )}
+                    <div className="alert-detail-row">
+                      <span className="alert-detail-label">Risk Score</span>
+                      <span className="alert-detail-value">{((alert.riskScore || 0) * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="alert-detail-row">
+                      <span className="alert-detail-label">Triggered</span>
+                      <span className="alert-detail-value">
+                        {alert.createdAt?.toDate
+                          ? alert.createdAt.toDate().toLocaleString()
+                          : new Date(alert.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Voice recordings */}
+                    {audioUrls.length > 0 && (
+                      <div className="alert-evidence-section">
+                        <span className="alert-detail-label">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "0.9em", height: "0.9em", verticalAlign: "middle", marginRight: "0.25em" }}>
+                            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                            <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                          </svg>
+                          Voice Recording{audioUrls.length > 1 ? "s" : ""}
+                        </span>
+                        {audioUrls.map((url, i) => (
+                          <audio key={i} controls preload="none" style={{ width: "100%", marginTop: "0.4rem" }}>
+                            <source src={url} />
+                          </audio>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Evidence photos */}
+                    {photoUrls.length > 0 && (
+                      <div className="alert-evidence-section">
+                        <span className="alert-detail-label">Evidence Photo{photoUrls.length > 1 ? "s" : ""}</span>
+                        <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
+                          {photoUrls.map((url, i) => (
+                            <img key={i} src={url} alt="Evidence" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "6px", border: "1px solid #2f3336" }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {audioUrls.length === 0 && photoUrls.length === 0 && (
+                      <p style={{ fontSize: "0.8rem", color: "#71767b", margin: "0.4rem 0 0" }}>No evidence captured yet.</p>
+                    )}
+
+                    {/* Timeline */}
+                    {alert.timeline?.length > 0 && (
+                      <div className="alert-evidence-section">
+                        <span className="alert-detail-label">Timeline</span>
+                        {alert.timeline.map((entry, i) => (
+                          <div key={i} style={{ fontSize: "0.75rem", color: "#a1a1aa", padding: "0.15rem 0" }}>
+                            {entry.event}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

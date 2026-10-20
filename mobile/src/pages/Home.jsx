@@ -31,6 +31,7 @@ import { sendNotification } from "../utils/notify";
 import { usePlaceDetection } from "../hooks/usePlaceDetection";
 import AiStatusCard from "../components/AiStatusCard";
 import PlaceSuggestionCard from "../components/PlaceSuggestionCard";
+import { APP_VERSION } from "../config/version";
 import "./Home.css";
 
 // Pulsing blue dot for current user (matches Map tab style)
@@ -1599,6 +1600,10 @@ export default function Home() {
                   ? "Agency Staff"
                   : "Member"}
           </span>
+        </div>
+        <div className="account-row">
+          <span className="account-label">App Version</span>
+          <span className="account-value">v{APP_VERSION}</span>
         </div>
       </section>
     </div>
