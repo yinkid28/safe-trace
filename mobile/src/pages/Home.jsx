@@ -395,14 +395,25 @@ export default function Home() {
 
   // Voice recording — automatically starts when any alert is triggered
   const startVoiceRecording = async (alertId) => {
+    const logToAlert = async (msg) => {
+      try {
+        await updateDoc(doc(db, "alerts", alertId), {
+          timeline: arrayUnion({ event: msg, timestamp: new Date() }),
+        });
+      } catch (_) { /* best-effort */ }
+    };
+
     // Check if the API is available at all
     if (!navigator.mediaDevices?.getUserMedia) {
-      console.warn("getUserMedia not available in this WebView");
+      await logToAlert("Voice recording: getUserMedia not available");
       return;
     }
 
     try {
+      await logToAlert("Voice recording: requesting mic...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      await logToAlert("Voice recording: mic granted");
+
       // Determine a supported MIME type
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
@@ -420,11 +431,15 @@ export default function Home() {
         setIsRecording(false);
         // Release the microphone
         stream.getTracks().forEach((track) => track.stop());
-        if (chunks.length === 0) return;
+        if (chunks.length === 0) {
+          await logToAlert("Voice recording: stopped but no audio chunks captured");
+          return;
+        }
 
         const ext = (recorder.mimeType || "").includes("mp4") ? "mp4" : "webm";
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         try {
+          await logToAlert(`Voice recording: uploading ${chunks.length} chunks (${blob.size} bytes)`);
           const storageRef = ref(storage, `evidence/${alertId}/audio_${Date.now()}.${ext}`);
           await uploadBytes(storageRef, blob);
           const url = await getDownloadURL(storageRef);
@@ -433,12 +448,12 @@ export default function Home() {
             timeline: arrayUnion({ event: "Voice recording captured", timestamp: new Date() }),
           });
         } catch (err) {
-          console.error("Failed to upload voice recording:", err);
+          await logToAlert(`Voice recording: upload failed - ${err.message}`);
         }
       };
 
-      recorder.onerror = (e) => {
-        console.error("MediaRecorder error:", e.error);
+      recorder.onerror = async (e) => {
+        await logToAlert(`Voice recording: recorder error - ${e.error?.message || "unknown"}`);
         setIsRecording(false);
         stream.getTracks().forEach((track) => track.stop());
       };
@@ -446,6 +461,7 @@ export default function Home() {
       recorder.start(5000); // buffer every 5s for faster first chunk
       recorderRef.current = recorder;
       setIsRecording(true);
+      await logToAlert("Voice recording: started");
 
       // Auto-stop after 60 seconds
       setTimeout(() => {
@@ -455,8 +471,7 @@ export default function Home() {
         }
       }, 60000);
     } catch (err) {
-      // Mic unavailable or permission denied — alert still works without recording
-      console.error("Voice recording unavailable:", err);
+      await logToAlert(`Voice recording: failed - ${err.name}: ${err.message}`);
     }
   };
 
