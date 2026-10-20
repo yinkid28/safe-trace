@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { db } from "../config/firebase";
 import { APP_VERSION } from "../config/version";
 import "./UpdateBanner.css";
@@ -54,12 +55,18 @@ export default function UpdateBanner() {
     setDismissed(true);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!update.downloadUrl) return;
 
-    // Open in the system browser — Android's download manager will
-    // download the APK and prompt the user to install it.
-    window.open(update.downloadUrl, "_system");
+    // Open in the external system browser (Chrome) via Capacitor Browser plugin.
+    // Chrome's download manager will download the APK and the user taps the
+    // notification to install it.
+    try {
+      await Browser.open({ url: update.downloadUrl, windowName: "_system" });
+    } catch {
+      // Fallback if Browser plugin fails
+      window.location.href = update.downloadUrl;
+    }
 
     localStorage.setItem("safetrace_downloaded_version", update.version);
     setDismissed(true);
