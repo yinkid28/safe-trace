@@ -485,6 +485,70 @@ export default function Home() {
     }
   };
 
+  // Silent SOS — triggered by volume-down x4 (native Android event)
+  // No countdown, no camera, no UI feedback. Just creates alert + starts tracking.
+  const triggerSilentSos = async () => {
+    if (isAlertActive) return; // Already in an active alert
+    setIsAlertActive(true);
+
+    const loc = position
+      ? { lat: position.lat, lng: position.lng, speed: position.speed || 0, heading: position.heading || 0 }
+      : null;
+
+    try {
+      const alertRef = doc(collection(db, "alerts"));
+      const alertId = alertRef.id;
+      setCurrentAlertId(alertId);
+
+      const alertData = {
+        userId: user.uid,
+        userName: user.name,
+        familyId: user.familyId || "no_family",
+        agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
+        type: "panic",
+        status: "new",
+        createdAt: new Date(),
+        lastKnownLocation: loc || { lat: 0, lng: 0, speed: 0, heading: 0 },
+        locationName: loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : "Location unavailable",
+        riskScore: 1.0,
+        explanations: ["Silent SOS triggered via volume button"],
+        evidenceUrls: [],
+        escalated: true,
+        escalatedAt: new Date(),
+        trajectory: loc ? [{ lat: loc.lat, lng: loc.lng, timestamp: new Date().toISOString() }] : [],
+        timeline: [
+          { event: "Silent SOS triggered (volume button)", timestamp: new Date() },
+          { event: "Alert escalated to agency", timestamp: new Date() },
+        ],
+        notes: [],
+      };
+
+      await setDoc(alertRef, alertData);
+
+      sendNotification({
+        alertId,
+        alertType: "panic",
+        userName: user.name,
+        familyId: alertData.familyId,
+        agencyId: alertData.agencyId,
+        locationName: alertData.locationName,
+      });
+
+      if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
+      startTracking(alertId);
+    } catch (err) {
+      console.error("Silent SOS Error:", err);
+      setIsAlertActive(false);
+    }
+  };
+
+  // Listen for volume-button silent SOS from native Android
+  useEffect(() => {
+    const handler = () => triggerSilentSos();
+    window.addEventListener("safetrace:silentsos", handler);
+    return () => window.removeEventListener("safetrace:silentsos", handler);
+  });
+
   // Live Journey Tracking (real GPS only — no simulated data)
   const startTracking = (alertId = null) => {
     setIsTracking(true);

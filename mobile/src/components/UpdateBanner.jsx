@@ -93,14 +93,16 @@ export default function UpdateBanner() {
 
       // Open the APK to trigger Android installer
       const fileUri = saved.uri;
-      // Use Android intent to install APK via the WebView
       window.open(fileUri, "_system");
 
       setProgress(100);
+      // Dismiss the banner — the installer is now open
+      setDismissed(true);
     } catch (err) {
       console.error("Download failed:", err);
       // Fallback: open in browser
       window.open(update.downloadUrl, "_system");
+      setDismissed(true);
     } finally {
       setDownloading(false);
     }
