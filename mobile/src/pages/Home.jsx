@@ -123,6 +123,7 @@ export default function Home() {
   const [panicCountdown, setPanicCountdown] = useState(null);
   const [currentAlertId, setCurrentAlertId] = useState(null);
   const [isAlertActive, setIsAlertActive] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [journeyPath, setJourneyPath] = useState([]); // List of lat/lng recorded during active tracking
 
@@ -380,9 +381,21 @@ export default function Home() {
 
   // Voice recording — automatically starts when any alert is triggered
   const startVoiceRecording = async (alertId) => {
+    // Check if the API is available at all
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.warn("getUserMedia not available in this WebView");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // Determine a supported MIME type
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : undefined; // let browser pick default
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks = [];
 
       recorder.ondataavailable = (e) => {
@@ -390,13 +403,15 @@ export default function Home() {
       };
 
       recorder.onstop = async () => {
+        setIsRecording(false);
         // Release the microphone
         stream.getTracks().forEach((track) => track.stop());
         if (chunks.length === 0) return;
 
+        const ext = (recorder.mimeType || "").includes("mp4") ? "mp4" : "webm";
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         try {
-          const storageRef = ref(storage, `evidence/${alertId}/audio_${Date.now()}.webm`);
+          const storageRef = ref(storage, `evidence/${alertId}/audio_${Date.now()}.${ext}`);
           await uploadBytes(storageRef, blob);
           const url = await getDownloadURL(storageRef);
           await updateDoc(doc(db, "alerts", alertId), {
@@ -408,8 +423,15 @@ export default function Home() {
         }
       };
 
-      recorder.start(10000); // buffer every 10s
+      recorder.onerror = (e) => {
+        console.error("MediaRecorder error:", e.error);
+        setIsRecording(false);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start(5000); // buffer every 5s for faster first chunk
       recorderRef.current = recorder;
+      setIsRecording(true);
 
       // Auto-stop after 60 seconds
       setTimeout(() => {
@@ -943,13 +965,21 @@ export default function Home() {
               <span className="panic-hint">Tap to abort broadcast</span>
             </button>
           ) : isAlertActive ? (
-            <button className="panic-button active" onClick={handleCheckInSafe}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sos-pulse">
-                <path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96l-6.93-12a2 2 0 00-3.5 0l-6.93 12A2 2 0 005.07 19z" />
-              </svg>
-              <span className="panic-label">SOS ACTIVE</span>
-              <span className="panic-hint">Check in to signal safety</span>
-            </button>
+            <>
+              <button className="panic-button active" onClick={handleCheckInSafe}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sos-pulse">
+                  <path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96l-6.93-12a2 2 0 00-3.5 0l-6.93 12A2 2 0 005.07 19z" />
+                </svg>
+                <span className="panic-label">SOS ACTIVE</span>
+                <span className="panic-hint">Check in to signal safety</span>
+              </button>
+              {isRecording && (
+                <div className="recording-indicator">
+                  <span className="recording-dot"></span>
+                  <span>Recording audio...</span>
+                </div>
+              )}
+            </>
           ) : (
             <button className="panic-button ready" onClick={startPanicCountdown}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

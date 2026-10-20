@@ -656,6 +656,13 @@
   border-radius: var(--radius-md);
   padding-bottom: 0.5rem;
 }
+.map-alert-item.resolved {
+  opacity: 0.7;
+}
+.map-alert-item.resolved.expanded {
+  opacity: 1;
+  background: rgba(34, 197, 94, 0.04);
+}
 
 .alert-item-header {
   display: flex;

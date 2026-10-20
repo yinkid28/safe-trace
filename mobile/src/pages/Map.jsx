@@ -143,13 +143,27 @@ export default function FamilyMap() {
     const qAlerts = query(
       collection(db, "alerts"),
       where("familyId", "==", user.familyId),
-      where("status", "in", ["new", "acknowledged"])
+      where("status", "in", ["new", "acknowledged", "resolved"])
     );
     const unsubAlerts = onSnapshot(
       qAlerts,
       (snap) => {
+        const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
         const list = [];
-        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        snap.forEach((d) => {
+          const data = { id: d.id, ...d.data() };
+          // Keep active alerts always; keep resolved alerts from last 24h
+          if (data.status !== "resolved") {
+            list.push(data);
+          } else {
+            const created = data.createdAt?.toDate
+              ? data.createdAt.toDate().getTime()
+              : (data.createdAt ? new Date(data.createdAt).getTime() : 0);
+            if (created > twentyFourHoursAgo) {
+              list.push(data);
+            }
+          }
+        });
         setActiveAlerts(list);
       },
       (err) => console.warn("Alerts query error:", err.message)
@@ -588,7 +602,7 @@ export default function FamilyMap() {
 
         {activeAlerts.length === 0 ? (
           <div className="no-alerts-row">
-            <span className="no-alerts-text">All family members are safe.</span>
+            <span className="no-alerts-text">No alerts in the last 24 hours.</span>
           </div>
         ) : (
           activeAlerts.map((alert) => {
@@ -596,17 +610,21 @@ export default function FamilyMap() {
               ? [alert.lastKnownLocation.lat, alert.lastKnownLocation.lng]
               : null;
             const isExpanded = expandedAlertId === alert.id;
+            const isResolved = alert.status === "resolved";
             const audioUrls = (alert.evidenceUrls || []).filter((u) => u.includes("/audio_"));
             const photoUrls = (alert.evidenceUrls || []).filter((u) => u.includes("/photo_"));
             return (
-              <div key={alert.id} className={`map-alert-item${isExpanded ? " expanded" : ""}`}>
+              <div key={alert.id} className={`map-alert-item${isExpanded ? " expanded" : ""}${isResolved ? " resolved" : ""}`}>
                 <div
                   className="alert-item-header"
                   onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
                   style={{ cursor: "pointer" }}
                 >
                   <div className="alert-item-text">
-                    <span className="alert-user-name">{alert.userName}</span>
+                    <span className="alert-user-name">
+                      {alert.userName}
+                      {isResolved && <span style={{ fontSize: "0.65rem", color: "#22c55e", marginLeft: "0.4rem", fontWeight: 600 }}>Resolved</span>}
+                    </span>
                     <span className="alert-details-sub">
                       {alert.type === "ai_anomaly" ? "AI Anomaly" : "SOS"} near {alert.locationName || "Unknown"}
                     </span>
@@ -617,11 +635,13 @@ export default function FamilyMap() {
                         Focus
                       </button>
                     )}
-                    <button className="btn-dismiss-alert" onClick={(e) => { e.stopPropagation(); handleDismissAlert(alert.id); }} aria-label="Dismiss alert">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.85em", height: "0.85em" }}>
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
+                    {!isResolved && (
+                      <button className="btn-dismiss-alert" onClick={(e) => { e.stopPropagation(); handleDismissAlert(alert.id); }} aria-label="Dismiss alert">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "0.85em", height: "0.85em" }}>
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
