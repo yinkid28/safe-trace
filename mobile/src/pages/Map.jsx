@@ -88,6 +88,7 @@ export default function FamilyMap() {
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [queryError, setQueryError] = useState(null);
   const [familySharedZones, setFamilySharedZones] = useState([]);
+  const [hardwareTrackers, setHardwareTrackers] = useState([]); // { uid, name, location, deviceId }
 
   // Trail viewing state
   const [trailUserId, setTrailUserId] = useState(null);
@@ -107,10 +108,28 @@ export default function FamilyMap() {
       qMembers,
       (snap) => {
         const list = [];
+        const trackers = [];
+        const thirtyMinAgo = Date.now() - 30 * 60 * 1000;
         snap.forEach((d) => {
-          if (d.id !== user.uid) list.push({ uid: d.id, ...d.data() });
+          const data = d.data();
+          if (d.id !== user.uid) list.push({ uid: d.id, ...data });
+          // Collect hardware tracker locations for ALL users (including self)
+          if (data.hardwareLocation?.lat && data.hardwareLocation?.lng) {
+            const updatedAt = data.hardwareLocation.updatedAt?.toDate
+              ? data.hardwareLocation.updatedAt.toDate().getTime()
+              : (data.hardwareLocation.updatedAt ? new Date(data.hardwareLocation.updatedAt).getTime() : 0);
+            if (updatedAt > thirtyMinAgo) {
+              trackers.push({
+                uid: d.id,
+                name: data.name || "Unknown",
+                location: data.hardwareLocation,
+                isSelf: d.id === user.uid,
+              });
+            }
+          }
         });
         setFamilyMembers(list);
+        setHardwareTrackers(trackers);
       },
       (err) => {
         console.warn("Family members query error:", err.message);
@@ -318,6 +337,21 @@ export default function FamilyMap() {
             );
           })}
 
+          {/* Hardware tracker markers (separate from phone positions) */}
+          {hardwareTrackers.map((tracker) => (
+            <Marker
+              key={`hw-${tracker.uid}`}
+              position={[tracker.location.lat, tracker.location.lng]}
+              icon={createHardwareTrackerIcon(tracker.name)}
+            >
+              <Popup>
+                <strong>{tracker.isSelf ? "Your" : `${tracker.name}'s`} Tracker</strong>
+                {tracker.location.deviceId && <><br />Device: {tracker.location.deviceId}</>}
+                <br />Speed: {tracker.location.speed ? `${tracker.location.speed} km/h` : "Stopped"}
+              </Popup>
+            </Marker>
+          ))}
+
           {/* Alert markers + trajectory polylines */}
           {activeAlerts.map((alert) => {
             const loc = alert.lastKnownLocation;
@@ -499,7 +533,36 @@ export default function FamilyMap() {
             );
           })}
 
-          {familyMembers.length === 0 && (
+          {/* Hardware trackers */}
+          {hardwareTrackers.length > 0 && hardwareTrackers.map((tracker) => (
+            <div key={`hw-card-${tracker.uid}`} className="map-member-card">
+              <div className="member-status-info">
+                <div className="member-avatar" style={{ background: "linear-gradient(135deg, #92400e, #78350f)" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                    <circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+                  </svg>
+                </div>
+                <div className="member-text">
+                  <span className="member-name-text">
+                    {tracker.isSelf ? `${tracker.name} (Your Tracker)` : `${tracker.name}'s Tracker`}
+                  </span>
+                  <span className="member-sub-text">
+                    {tracker.location.deviceId || "Hardware"} &middot; {tracker.location.speed ? `${tracker.location.speed} km/h` : "Stopped"}
+                  </span>
+                </div>
+              </div>
+              <div className="member-actions">
+                <button
+                  className="btn-locate-member"
+                  onClick={() => setSelectedCenter([tracker.location.lat, tracker.location.lng])}
+                >
+                  Locate
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {familyMembers.length === 0 && hardwareTrackers.length === 0 && (
             <p className="no-members-text">You're the only member. Invite others from Home tab.</p>
           )}
 

@@ -161,7 +161,7 @@ async def receive_location(req: HardwareLocationRequest):
         "status": "online",
     })
 
-    # 4b. Update the user's lastLocation
+    # 4b. Update the user's lastLocation + separate hardwareLocation
     user_ref = db.collection("users").document(user_id)
     batch.update(user_ref, {
         "lastLocation": {
@@ -172,6 +172,13 @@ async def receive_location(req: HardwareLocationRequest):
         },
         "lastSeen": now,
         "lastLocationSource": "hardware",
+        "hardwareLocation": {
+            "lat": req.lat,
+            "lng": req.lon,
+            "speed": req.speed,
+            "deviceId": req.deviceId,
+            "updatedAt": now,
+        },
     })
 
     # 4c. Append to locationHistory

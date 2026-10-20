@@ -30,6 +30,10 @@ export default function UpdateBanner() {
 
         if (!latest || latest === APP_VERSION) return;
 
+        // If user already downloaded this version, don't nag again
+        const alreadyDownloaded = localStorage.getItem("safetrace_downloaded_version");
+        if (alreadyDownloaded === latest) return;
+
         setUpdate({
           version: latest,
           downloadUrl: data.downloadUrl || null,
@@ -96,12 +100,14 @@ export default function UpdateBanner() {
       window.open(fileUri, "_system");
 
       setProgress(100);
-      // Dismiss the banner — the installer is now open
+      // Remember that this version was downloaded so the banner won't return
+      localStorage.setItem("safetrace_downloaded_version", update.version);
       setDismissed(true);
     } catch (err) {
       console.error("Download failed:", err);
       // Fallback: open in browser
       window.open(update.downloadUrl, "_system");
+      localStorage.setItem("safetrace_downloaded_version", update.version);
       setDismissed(true);
     } finally {
       setDownloading(false);

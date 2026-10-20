@@ -46,12 +46,22 @@ run(`"${gradlew}" -p "${androidDir}" assembleDebug`);
 // 5. Upload APK + update Firestore version
 run("node upload-apk.js", path.join(ROOT, "firebase"));
 
-// 6. Deploy dashboard to Firebase Hosting
-const mobileDistDir = path.join(ROOT, "mobile/dist");
+// 6. Build dashboard and deploy to Firebase Hosting
+run("npm run build", path.join(ROOT, "dashboard"));
+const dashboardDistDir = path.join(ROOT, "dashboard/dist");
 const publicDir = path.join(ROOT, "firebase/public");
-// Copy build output to hosting public folder
-for (const file of fs.readdirSync(mobileDistDir)) {
-  const src = path.join(mobileDistDir, file);
+// Clear old hosting files first
+for (const file of fs.readdirSync(publicDir)) {
+  const fp = path.join(publicDir, file);
+  if (fs.statSync(fp).isDirectory()) {
+    fs.rmSync(fp, { recursive: true });
+  } else {
+    fs.unlinkSync(fp);
+  }
+}
+// Copy dashboard build output to hosting public folder
+for (const file of fs.readdirSync(dashboardDistDir)) {
+  const src = path.join(dashboardDistDir, file);
   const dest = path.join(publicDir, file);
   if (fs.statSync(src).isDirectory()) {
     execSync(`xcopy /E /Y /I "${src}" "${dest}"`, { stdio: "inherit" });

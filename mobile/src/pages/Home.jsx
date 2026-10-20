@@ -128,6 +128,7 @@ export default function Home() {
   const trackingInterval = useRef(null);
   const countdownInterval = useRef(null);
   const positionRef = useRef(null);
+  const recorderRef = useRef(null);
 
   // Keep positionRef in sync so tracking interval can read latest GPS
   useEffect(() => {
@@ -230,6 +231,7 @@ export default function Home() {
         agencyId: family?.agencyId || user.directAgencyId || DEFAULT_AGENCY_ID,
         locationName: loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : "Location unavailable",
       });
+      startVoiceRecording(alertRef.id);
       resetEscalation();
     }).catch((err) => {
       console.error("AI alert creation failed:", err);
@@ -237,10 +239,11 @@ export default function Home() {
     });
   }, [escalate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clean up timers on unmount
+  // Clean up timers + recording on unmount
   useEffect(() => {
     return () => {
       stopTracking();
+      stopVoiceRecording();
       if (countdownInterval.current) clearInterval(countdownInterval.current);
     };
   }, []);
@@ -374,6 +377,59 @@ export default function Home() {
     }
   };
 
+  // Voice recording — automatically starts when any alert is triggered
+  const startVoiceRecording = async (alertId) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        // Release the microphone
+        stream.getTracks().forEach((track) => track.stop());
+        if (chunks.length === 0) return;
+
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        try {
+          const storageRef = ref(storage, `evidence/${alertId}/audio_${Date.now()}.webm`);
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+          await updateDoc(doc(db, "alerts", alertId), {
+            evidenceUrls: arrayUnion(url),
+            timeline: arrayUnion({ event: "Voice recording captured", timestamp: new Date() }),
+          });
+        } catch (err) {
+          console.error("Failed to upload voice recording:", err);
+        }
+      };
+
+      recorder.start(10000); // buffer every 10s
+      recorderRef.current = recorder;
+
+      // Auto-stop after 60 seconds
+      setTimeout(() => {
+        if (recorderRef.current?.state === "recording") {
+          recorderRef.current.stop();
+          recorderRef.current = null;
+        }
+      }, 60000);
+    } catch (err) {
+      // Mic unavailable or permission denied — alert still works without recording
+      console.error("Voice recording unavailable:", err);
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+      recorderRef.current = null;
+    }
+  };
+
   // Panic Button Actions
   const startPanicCountdown = () => {
     if (panicCountdown !== null || isAlertActive) return;
@@ -447,9 +503,10 @@ export default function Home() {
         locationName: alertData.locationName,
       });
 
-      // 3. Start location tracking right away
+      // 3. Start location tracking + voice recording right away
       if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
       startTracking(alertId);
+      startVoiceRecording(alertId);
 
       // 4. NOW attempt to capture evidence photo — if the WebView reloads
       //    during camera, the alert already exists in Firestore.
@@ -536,6 +593,7 @@ export default function Home() {
 
       if (loc) setJourneyPath([{ lat: loc.lat, lng: loc.lng }]);
       startTracking(alertId);
+      startVoiceRecording(alertId);
     } catch (err) {
       console.error("Silent SOS Error:", err);
       setIsAlertActive(false);
@@ -625,6 +683,7 @@ export default function Home() {
 
   const handleCheckInSafe = async () => {
     stopTracking();
+    stopVoiceRecording();
     cancelPanicCountdown();
     setIsAlertActive(false);
 
