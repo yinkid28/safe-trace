@@ -250,6 +250,20 @@ export default function Home() {
     };
   }, []);
 
+  // Warm up microphone permission on mount — triggers Android permission
+  // dialog early so it's already granted when an SOS fires.
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((stream) => {
+        // Permission granted — release the mic immediately
+        stream.getTracks().forEach((t) => t.stop());
+      })
+      .catch(() => {
+        // Denied or unavailable — voice recording will be skipped during SOS
+      });
+  }, []);
+
   if (!user) return null;
 
   const handleCreateFamily = async (e) => {

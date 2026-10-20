@@ -206,6 +206,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 1.75rem;
+  padding-bottom: calc(1.75rem + 80px);
   position: relative;
   max-height: 85vh;
   display: flex;
@@ -258,6 +259,8 @@
   flex-direction: column;
   gap: 1.25rem;
   padding-bottom: 2rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .modal-telemetry-strip {
@@ -285,6 +288,9 @@
   font-weight: 800;
   color: var(--text-primary);
   margin-top: 0.15rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: center;
 }
 
 .modal-tel-val.status-new { color: var(--color-danger); }
@@ -329,6 +335,8 @@
   background: var(--color-background);
   padding: 0.6rem 0.85rem;
   border-radius: var(--radius-sm);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .modal-evidence-gallery {
@@ -359,6 +367,8 @@
 .modal-timeline-node {
   position: relative;
   font-size: 0.85rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .modal-timeline-node::before {
@@ -380,6 +390,37 @@
 
 .modal-node-text {
   color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Audio player styles */
+.modal-audio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-audio-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-background);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.modal-audio-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.modal-audio-player {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
 }
 
 @media (min-width: 768px) {

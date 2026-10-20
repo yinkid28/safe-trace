@@ -222,16 +222,48 @@ export default function FamilyAlerts() {
               )}
 
               {/* Evidence captured */}
-              {selectedAlert.evidenceUrls?.length > 0 && (
-                <div className="modal-section">
-                  <h3 className="modal-section-title">Evidence Photo</h3>
-                  <div className="modal-evidence-gallery">
-                    {selectedAlert.evidenceUrls.map((url, i) => (
-                      <img key={i} src={url} alt="SOS Evidence" className="modal-evidence-img" />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {selectedAlert.evidenceUrls?.length > 0 && (() => {
+                const audioUrls = selectedAlert.evidenceUrls.filter(
+                  (url) => /audio_/i.test(url) || /\.(webm|mp4|ogg|wav|m4a)([?#]|$)/i.test(url)
+                );
+                const photoUrls = selectedAlert.evidenceUrls.filter(
+                  (url) => !audioUrls.includes(url)
+                );
+                return (
+                  <>
+                    {photoUrls.length > 0 && (
+                      <div className="modal-section">
+                        <h3 className="modal-section-title">Evidence Photos</h3>
+                        <div className="modal-evidence-gallery">
+                          {photoUrls.map((url, i) => (
+                            <img key={i} src={url} alt="SOS Evidence" className="modal-evidence-img" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {audioUrls.length > 0 && (
+                      <div className="modal-section">
+                        <h3 className="modal-section-title">Voice Recordings</h3>
+                        <div className="modal-audio-list">
+                          {audioUrls.map((url, i) => (
+                            <div key={i} className="modal-audio-item">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="modal-audio-icon">
+                                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                                <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                              </svg>
+                              <audio controls preload="metadata" className="modal-audio-player">
+                                <source src={url} />
+                              </audio>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Timeline events */}
               {selectedAlert.timeline?.length > 0 && (
